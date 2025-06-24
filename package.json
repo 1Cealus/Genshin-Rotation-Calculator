@@ -1,0 +1,29 @@
+{
+  "name": "genshin-rotation-calculator",
+  "version": "1.0.0",
+  "main": "buff_database.js",
+  "scripts": {
+    "dev": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1Cealus/Genshin-Rotation-Calculator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/1Cealus/Genshin-Rotation-Calculator/issues"
+  },
+  "homepage": "https://github.com/1Cealus/Genshin-Rotation-Calculator#readme",
+  "description": "",
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.6.0",
+    "vite": "^7.0.0"
+  }
+}
