@@ -3,7 +3,11 @@ import { buffData } from '../data/buff_database.js';
 import { mainStatValues } from '../data/main_stat_values.js';
 
 export function calculateTotalStats(state) {
-    const { character, weapon, characterBuild } = state;
+    const { character, weapon, characterBuild, team, characterBuilds } = state;
+    if (!character || !weapon || !characterBuild) {
+        return {}; // Return empty object if essential data is missing
+    }
+    
     const baseStats = { atk: character.base_atk + weapon.base_atk, hp: character.base_hp, def: character.base_def };
     const bonuses = {};
 
@@ -58,6 +62,26 @@ export function calculateTotalStats(state) {
         });
     }
 
+    // 6. Constellation Effects
+    // This section checks for constellation effects from teammates that might affect the active character
+    if (team && characterBuilds) {
+        team.forEach(charKey => {
+            if (!charKey) return;
+            const teammateBuild = characterBuilds[charKey];
+            if (!teammateBuild) return;
+
+            // Example: Yelan C4 increases party members' Max HP
+            if (charKey === 'yelan' && teammateBuild.constellation >= 4) {
+                 // Note: This is a simplified implementation. The actual buff depends on stacks from her E.
+                 // For now, we'll assume a certain number of stacks for demonstration.
+                 // A more advanced implementation would track these stacks in the rotation state.
+                 const yelanC4Stacks = 4; // Assuming max stacks for simplicity
+                 addBonus('hp_percent', 0.10 * yelanC4Stacks);
+            }
+        });
+    }
+
+
     // Calculate final stats
     const finalStats = {};
     finalStats.hp = baseStats.hp * (1 + (bonuses.hp_percent || 0)) + (bonuses.hp_flat || 0);
@@ -67,11 +91,11 @@ export function calculateTotalStats(state) {
     // Copy remaining bonuses
     for (const key in bonuses) {
         if (!['atk_percent', 'flat_atk', 'hp_percent', 'hp_flat', 'def_percent', 'flat_def'].includes(key)) {
-            finalStats[key] = bonuses[key];
+            finalStats[key] = (finalStats[key] || 0) + bonuses[key];
         }
     }
     
-    // Add base character stats
+    // Add base character stats that are always present
     finalStats.crit_rate = (finalStats.crit_rate || 0) + 0.05;
     finalStats.crit_dmg = (finalStats.crit_dmg || 0) + 0.50;
     finalStats.er = (finalStats.er || 0) + 1.0;

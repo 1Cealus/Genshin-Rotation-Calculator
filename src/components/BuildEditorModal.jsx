@@ -3,7 +3,7 @@ import { characterData } from '../data/character_database.js';
 import { weaponData } from '../data/weapon_database.js';
 import { artifactSets } from '../data/artifact_sets.js';
 import { artifactMainStats } from '../data/artifact_stats.js';
-import { calculateTotalStats } from '../logic/stat_calculator.js'; // We'll move stat logic to its own file
+import { calculateTotalStats } from '../logic/stat_calculator.js';
 
 // A component for a single artifact piece, managing its main stat and substats
 const ArtifactPieceEditor = ({ pieceName, pieceData, onUpdate, mainStatOptions }) => {
@@ -82,6 +82,14 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
     const handleRefinementChange = (e) => {
         updateBuild(charKey, { ...build, weapon: { ...build.weapon, refinement: parseInt(e.target.value) } });
     };
+    
+    // Handler for constellation changes
+    const handleConstellationChange = (e) => {
+        const value = parseInt(e.target.value);
+        if (value >= 0 && value <= 6) {
+            updateBuild(charKey, { ...build, constellation: value });
+        }
+    };
 
     const handleTalentLevelChange = (talent) => (e) => {
         updateBuild(charKey, { ...build, talentLevels: { ...build.talentLevels, [talent]: parseInt(e.target.value) } });
@@ -114,6 +122,24 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                 <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Left side: Config */}
                     <div className="space-y-6">
+                        {/* Character Level and Constellation */}
+                        <div className="space-y-3">
+                           <h3 className="text-xl font-semibold text-gray-200">Character</h3>
+                           <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-gray-300 block mb-1">Constellation</label>
+                                    <select value={build.constellation} onChange={handleConstellationChange} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white">
+                                        {[0,1,2,3,4,5,6].map(c => <option key={c} value={c}>C{c}</option>)}
+                                    </select>
+                                </div>
+                                {/* Placeholder for level, can be expanded later */}
+                                <div>
+                                    <label className="text-sm text-gray-300 block mb-1">Level</label>
+                                    <input type="number" value={build.level} readOnly className="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-white" />
+                                </div>
+                           </div>
+                        </div>
+
                         {/* Weapon Section */}
                         <div className="space-y-3">
                              <h3 className="text-xl font-semibold text-gray-200">Weapon</h3>
