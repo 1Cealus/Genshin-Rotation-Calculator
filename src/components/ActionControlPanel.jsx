@@ -31,7 +31,7 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
 
     const filteredBuffs = useMemo(() => {
         if (!searchTerm) return availableBuffs;
-        return availableBuffs.filter(([key, buff]) => 
+        return availableBuffs.filter(([, buff]) => 
             buff.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [searchTerm, availableBuffs]);
@@ -42,10 +42,18 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
 
     const handleBuffToggle = (buffKey) => {
         const newBuffs = { ...action.config.activeBuffs };
+        const buffDefinition = buffData[buffKey];
+
         if (newBuffs[buffKey]?.active) {
             newBuffs[buffKey].active = false;
         } else {
-            newBuffs[buffKey] = { active: true, stacks: buffData[buffKey].stackable ? 1 : undefined };
+            // FIX: This now constructs the buff state cleanly, avoiding 'undefined'.
+            const newBuffState = { active: true };
+            if (buffDefinition.stackable) {
+                // Only add the 'stacks' property if the buff is actually stackable.
+                newBuffState.stacks = 1; 
+            }
+            newBuffs[buffKey] = newBuffState;
         }
         handleUpdateConfig('activeBuffs', newBuffs);
     };
@@ -59,13 +67,15 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
     const talentInfo = characterData[action.characterKey].talents[action.talentKey];
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-white border-2 border-cyan-500">
-                <h2 className="text-2xl font-bold mb-4 text-cyan-400">Configure: {talentInfo.name}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900/80 rounded-2xl shadow-xl p-6 w-full max-w-2xl text-white border-2 border-gray-700 flex flex-col gap-6">
+                <h2 className="text-2xl font-bold text-cyan-400">Configure: {talentInfo.name}</h2>
+                
+                {/* Reactions and Infusions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Reaction</label>
-                        <select value={action.config.reactionType} onChange={e => handleUpdateConfig('reactionType', e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2">
+                        <select value={action.config.reactionType} onChange={e => handleUpdateConfig('reactionType', e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                             <option value="none">No Reaction</option>
                             <option value="vaporize_1.5">Vaporize (1.5x)</option>
                             <option value="vaporize_2.0">Vaporize (2.0x)</option>
@@ -76,34 +86,35 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                         </select>
                     </div>
                      {talentInfo.can_be_infused && (
-                        <div className="flex items-center justify-center bg-gray-700 p-2 rounded-md">
+                        <div className="flex items-center justify-center bg-gray-800 p-2 rounded-md border border-gray-600">
                             <input
                                 type="checkbox"
                                 id={`infusion-${action.id}`}
                                 checked={action.config.infusion === 'dendro'}
                                 onChange={e => handleUpdateConfig('infusion', e.target.checked ? 'dendro' : null)}
-                                className="h-4 w-4 rounded"
+                                className="h-4 w-4 rounded bg-gray-900 border-gray-500 text-cyan-500 focus:ring-cyan-600"
                             />
-                            <label htmlFor={`infusion-${action.id}`} className="ml-3 text-sm text-gray-300">Dendro Infusion</label>
+                            <label htmlFor={`infusion-${action.id}`} className="ml-3 text-sm text-gray-200">Dendro Infusion</label>
                         </div>
                     )}
                 </div>
 
-                <div className="mb-6">
+                {/* Buffs and Debuffs */}
+                <div>
                     <h3 className="text-lg font-semibold mb-2 text-gray-200">Available Buffs & Debuffs</h3>
-                    <input type="text" placeholder="Search buffs..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-gray-700 border-gray-600 rounded-md p-2 mb-2" />
-                    <div className="max-h-64 overflow-y-auto bg-gray-900/50 p-3 rounded-md border-gray-700 space-y-2">
+                    <input type="text" placeholder="Search buffs..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                    <div className="max-h-64 overflow-y-auto bg-gray-800/50 p-3 rounded-md border border-gray-700 space-y-2">
                         {filteredBuffs.map(([key, buff]) => (
-                            <div key={key} className="bg-gray-700 p-2 rounded-md">
+                            <div key={key} className="bg-gray-700/80 p-3 rounded-md">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center">
-                                        <input type="checkbox" id={`buff-${key}-${action.id}`} checked={!!action.config.activeBuffs[key]?.active} onChange={() => handleBuffToggle(key)} className="h-4 w-4 rounded" />
-                                        <label htmlFor={`buff-${key}-${action.id}`} className="ml-3 text-sm text-gray-300">{buff.name}</label>
+                                        <input type="checkbox" id={`buff-${key}-${action.id}`} checked={!!action.config.activeBuffs[key]?.active} onChange={() => handleBuffToggle(key)} className="h-4 w-4 rounded bg-gray-900 border-gray-500 text-cyan-500 focus:ring-cyan-600" />
+                                        <label htmlFor={`buff-${key}-${action.id}`} className="ml-3 text-sm text-gray-200">{buff.name}</label>
                                     </div>
                                     {buff.stackable && action.config.activeBuffs[key]?.active && (
                                         <div className="flex items-center gap-2">
-                                            <label className="text-xs">Stacks:</label>
-                                            <input type="number" min="1" max={buff.stackable.max_stacks} value={action.config.activeBuffs[key].stacks} onChange={e => handleStackChange(key, e.target.value)} className="w-16 bg-gray-800 text-white p-1 rounded-md text-center" />
+                                            <label className="text-xs text-gray-400">Stacks:</label>
+                                            <input type="number" min="1" max={buff.stackable.max_stacks} value={action.config.activeBuffs[key].stacks} onChange={e => handleStackChange(key, e.target.value)} className="w-16 bg-gray-800 text-white p-1 rounded-md text-center border border-gray-600" />
                                         </div>
                                     )}
                                 </div>
@@ -112,11 +123,11 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                                 )}
                             </div>
                         ))}
-                         {filteredBuffs.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No available buffs match for the current team.</p>}
+                         {filteredBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No available buffs match for the current team.</p>}
                     </div>
                 </div>
                 
-                <button onClick={closePanel} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg">Done</button>
+                <button onClick={closePanel} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Done</button>
             </div>
         </div>
     );

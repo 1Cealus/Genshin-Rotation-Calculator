@@ -1,9 +1,9 @@
 // This file contains all weapon-specific data.
-// - ADDED: `type` property to each weapon for filtering.
+// - ADDED: Weapons for Furina, Mona, Skirk, and Escoffier.
 export const weaponData = {
     no_weapon: { 
         name: 'No Weapon', 
-        type: 'all', // Can be equipped by anyone
+        type: 'all',
         base_atk: 0, 
         stats: {}, 
         refinements: [{}, {}, {}, {}, {}] 
@@ -38,5 +38,47 @@ export const weaponData = {
         base_atk: 542,
         stats: { crit_dmg: 0.882 },
         refinements: [{}]
+    },
+    // --- NEW WEAPONS ---
+    splendor_of_tranquil_waters: {
+        name: 'Splendor of Tranquil Waters',
+        type: 'sword',
+        base_atk: 542,
+        stats: { crit_dmg: 0.882 },
+        // Simplified passive for calculation
+        refinements: [
+            { skill_dmg_bonus: 0.08 }, { skill_dmg_bonus: 0.1 }, { skill_dmg_bonus: 0.12 },
+            { skill_dmg_bonus: 0.14 }, { skill_dmg_bonus: 0.16 }
+        ]
+    },
+    skyward_atlas: {
+        name: 'Skyward Atlas',
+        type: 'catalyst',
+        base_atk: 674,
+        stats: { atk_percent: 0.331 },
+        refinements: [
+            { all_dmg_bonus: 0.12 }, { all_dmg_bonus: 0.15 }, { all_dmg_bonus: 0.18 },
+            { all_dmg_bonus: 0.21 }, { all_dmg_bonus: 0.24 }
+        ]
+    },
+    azurelight: {
+        name: 'Azurelight',
+        type: 'sword',
+        base_atk: 608,
+        stats: { crit_rate: 0.331 },
+        refinements: [
+            { atk_percent: 0.20 }, { atk_percent: 0.25 }, { atk_percent: 0.30 },
+            { atk_percent: 0.35 }, { atk_percent: 0.40 }
+        ]
+    },
+    seasoned_symphony: {
+        name: 'Seasoned Symphony',
+        type: 'polearm',
+        base_atk: 608,
+        stats: { atk_percent: 0.496 },
+        refinements: [
+            { atk_percent: 0.12 }, { atk_percent: 0.15 }, { atk_percent: 0.18 },
+            { atk_percent: 0.21 }, { atk_percent: 0.24 }
+        ]
     }
 };

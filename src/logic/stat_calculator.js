@@ -2,10 +2,19 @@
 import { buffData } from '../data/buff_database.js';
 import { mainStatValues } from '../data/main_stat_values.js';
 
+// A default stats object to prevent crashes on undefined values.
+const defaultFinalStats = {
+    hp: 0, atk: 0, def: 0, crit_rate: 0.05, crit_dmg: 0.50, em: 0, er: 1.0,
+    pyro_dmg_bonus: 0, hydro_dmg_bonus: 0, dendro_dmg_bonus: 0, electro_dmg_bonus: 0,
+    anemo_dmg_bonus: 0, cryo_dmg_bonus: 0, geo_dmg_bonus: 0, physical_dmg_bonus: 0,
+};
+
+
 export function calculateTotalStats(state) {
     const { character, weapon, characterBuild, team, characterBuilds } = state;
+    // If essential data is missing, return the safe default object instead of an empty one.
     if (!character || !weapon || !characterBuild) {
-        return {}; // Return empty object if essential data is missing
+        return defaultFinalStats; 
     }
     
     const baseStats = { atk: character.base_atk + weapon.base_atk, hp: character.base_hp, def: character.base_def };
@@ -63,24 +72,18 @@ export function calculateTotalStats(state) {
     }
 
     // 6. Constellation Effects
-    // This section checks for constellation effects from teammates that might affect the active character
     if (team && characterBuilds) {
         team.forEach(charKey => {
             if (!charKey) return;
             const teammateBuild = characterBuilds[charKey];
             if (!teammateBuild) return;
 
-            // Example: Yelan C4 increases party members' Max HP
             if (charKey === 'yelan' && teammateBuild.constellation >= 4) {
-                 // Note: This is a simplified implementation. The actual buff depends on stacks from her E.
-                 // For now, we'll assume a certain number of stacks for demonstration.
-                 // A more advanced implementation would track these stacks in the rotation state.
-                 const yelanC4Stacks = 4; // Assuming max stacks for simplicity
+                 const yelanC4Stacks = 4;
                  addBonus('hp_percent', 0.10 * yelanC4Stacks);
             }
         });
     }
-
 
     // Calculate final stats
     const finalStats = {};
@@ -100,5 +103,5 @@ export function calculateTotalStats(state) {
     finalStats.crit_dmg = (finalStats.crit_dmg || 0) + 0.50;
     finalStats.er = (finalStats.er || 0) + 1.0;
 
-    return finalStats;
+    return { ...defaultFinalStats, ...finalStats };
 }
