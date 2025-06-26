@@ -7,24 +7,17 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
 
     const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
-        const equipped2pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_2pc).filter(set => set && set !== 'no_set');
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
         return Object.entries(buffData).filter(([buffKey, buff]) => {
-            if (buff.source_type === 'character') {
-                return team.includes(buff.source_character);
+            if (buff.source_type === 'character' && team.includes(buff.source_character)) return true;
+            if (buff.source_type === 'weapon' && activeTeamWeapons.includes(buff.source_weapon)) return true;
+            if (buff.source_type === 'constellation' && team.includes(buff.source_character)) {
+                 const build = characterBuilds[buff.source_character];
+                 return build && build.constellation >= buff.constellation;
             }
-            if (buff.source_type === 'weapon') {
-                return activeTeamWeapons.includes(buff.source_weapon);
-            }
-            if (buff.source_type === 'artifact_set') {
-                if (buffKey.includes('_4pc')) {
-                    return equipped4pcSets.includes(buff.source_set);
-                }
-                if (buffKey.includes('_2pc')) {
-                    return equipped2pcSets.includes(buff.source_set) || equipped4pcSets.includes(buff.source_set);
-                }
-            }
+            if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) return true;
+            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false; // Hide 2pc bonuses
             return false;
         });
     }, [team, characterBuilds]);
@@ -37,7 +30,8 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
     }, [searchTerm, availableBuffs]);
 
     const handleUpdateConfig = (key, value) => {
-        updateAction(action.id, { ...action, config: { ...action.config, [key]: value } });
+        const newConfig = { ...action.config, [key]: value };
+        updateAction(action.id, { ...action, config: newConfig });
     };
 
     const handleBuffToggle = (buffKey) => {
@@ -45,12 +39,10 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
         const buffDefinition = buffData[buffKey];
 
         if (newBuffs[buffKey]?.active) {
-            newBuffs[buffKey].active = false;
+            delete newBuffs[buffKey];
         } else {
-            // FIX: This now constructs the buff state cleanly, avoiding 'undefined'.
             const newBuffState = { active: true };
             if (buffDefinition.stackable) {
-                // Only add the 'stacks' property if the buff is actually stackable.
                 newBuffState.stacks = 1; 
             }
             newBuffs[buffKey] = newBuffState;
@@ -71,7 +63,6 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             <div className="bg-gray-900/80 rounded-2xl shadow-xl p-6 w-full max-w-2xl text-white border-2 border-gray-700 flex flex-col gap-6">
                 <h2 className="text-2xl font-bold text-cyan-400">Configure: {talentInfo.name}</h2>
                 
-                {/* Reactions and Infusions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Reaction</label>
@@ -87,19 +78,27 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                     </div>
                      {talentInfo.can_be_infused && (
                         <div className="flex items-center justify-center bg-gray-800 p-2 rounded-md border border-gray-600">
-                            <input
-                                type="checkbox"
-                                id={`infusion-${action.id}`}
-                                checked={action.config.infusion === 'dendro'}
-                                onChange={e => handleUpdateConfig('infusion', e.target.checked ? 'dendro' : null)}
-                                className="h-4 w-4 rounded bg-gray-900 border-gray-500 text-cyan-500 focus:ring-cyan-600"
-                            />
+                            <input type="checkbox" id={`infusion-${action.id}`} checked={action.config.infusion === 'dendro'} onChange={e => handleUpdateConfig('infusion', e.target.checked ? 'dendro' : null)} className="h-4 w-4 rounded bg-gray-900 border-gray-500 text-cyan-500 focus:ring-cyan-600" />
                             <label htmlFor={`infusion-${action.id}`} className="ml-3 text-sm text-gray-200">Dendro Infusion</label>
                         </div>
                     )}
                 </div>
+                
+                {/* --- Skirk Burst Specific Controls --- */}
+                {action.characterKey === 'skirk' && ['burst_ruin_slash', 'burst_ruin_final_slash'].includes(action.talentKey) && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Serpent's Subtlety Consumed</label>
+                        <input type="number" min="50" value={action.config.serpent_subtlety_consumed || 50} onChange={e => handleUpdateConfig('serpent_subtlety_consumed', parseInt(e.target.value))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2"/>
+                    </div>
+                )}
+                {action.characterKey === 'skirk' && action.talentKey === 'burst_extinction_cast' && (
+                     <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Void Rifts Absorbed</label>
+                        <input type="number" min="0" max="3" value={action.config.activeBuffs?.skirk_all_shall_wither?.stacks || 0} onChange={e => handleStackChange('skirk_all_shall_wither', parseInt(e.target.value))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2"/>
+                    </div>
+                )}
 
-                {/* Buffs and Debuffs */}
+
                 <div>
                     <h3 className="text-lg font-semibold mb-2 text-gray-200">Available Buffs & Debuffs</h3>
                     <input type="text" placeholder="Search buffs..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
@@ -114,7 +113,7 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                                     {buff.stackable && action.config.activeBuffs[key]?.active && (
                                         <div className="flex items-center gap-2">
                                             <label className="text-xs text-gray-400">Stacks:</label>
-                                            <input type="number" min="1" max={buff.stackable.max_stacks} value={action.config.activeBuffs[key].stacks} onChange={e => handleStackChange(key, e.target.value)} className="w-16 bg-gray-800 text-white p-1 rounded-md text-center border border-gray-600" />
+                                            <input type="number" min="1" max={buff.stackable.max_stacks} value={action.config.activeBuffs[key].stacks || 1} onChange={e => handleStackChange(key, e.target.value)} className="w-16 bg-gray-800 text-white p-1 rounded-md text-center border border-gray-600" />
                                         </div>
                                     )}
                                 </div>

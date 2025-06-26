@@ -1,5 +1,5 @@
 // This file contains all weapon-specific data.
-// - ADDED: Weapons for Furina, Mona, Skirk, and Escoffier.
+// - CORRECTED: Azurelight implementation.
 export const weaponData = {
     no_weapon: { 
         name: 'No Weapon', 
@@ -39,13 +39,11 @@ export const weaponData = {
         stats: { crit_dmg: 0.882 },
         refinements: [{}]
     },
-    // --- NEW WEAPONS ---
     splendor_of_tranquil_waters: {
         name: 'Splendor of Tranquil Waters',
         type: 'sword',
         base_atk: 542,
         stats: { crit_dmg: 0.882 },
-        // Simplified passive for calculation
         refinements: [
             { skill_dmg_bonus: 0.08 }, { skill_dmg_bonus: 0.1 }, { skill_dmg_bonus: 0.12 },
             { skill_dmg_bonus: 0.14 }, { skill_dmg_bonus: 0.16 }
@@ -64,12 +62,10 @@ export const weaponData = {
     azurelight: {
         name: 'Azurelight',
         type: 'sword',
-        base_atk: 608,
-        stats: { crit_rate: 0.331 },
-        refinements: [
-            { atk_percent: 0.20 }, { atk_percent: 0.25 }, { atk_percent: 0.30 },
-            { atk_percent: 0.35 }, { atk_percent: 0.40 }
-        ]
+        base_atk: 674, // Corrected Base ATK
+        stats: { crit_rate: 0.221 }, // Corrected Substat
+        // The passive is now implemented as selectable buffs, not direct stats.
+        refinements: [{}, {}, {}, {}, {}] 
     },
     seasoned_symphony: {
         name: 'Seasoned Symphony',
@@ -80,5 +76,25 @@ export const weaponData = {
             { atk_percent: 0.12 }, { atk_percent: 0.15 }, { atk_percent: 0.18 },
             { atk_percent: 0.21 }, { atk_percent: 0.24 }
         ]
+    },
+    festering_desire: {
+        name: 'Festering Desire',
+        type: 'sword',
+        base_atk: 510,
+        stats: { er: 0.459 },
+        refinements: [
+            { skill_dmg_bonus: 0.16, skill_crit_rate: 0.06 },
+            { skill_dmg_bonus: 0.20, skill_crit_rate: 0.075 },
+            { skill_dmg_bonus: 0.24, skill_crit_rate: 0.09 },
+            { skill_dmg_bonus: 0.28, skill_crit_rate: 0.105 },
+            { skill_dmg_bonus: 0.32, skill_crit_rate: 0.12 }
+        ]
+    },
+    thrilling_tales_of_dragon_slayers: {
+        name: 'Thrilling Tales of Dragon Slayers',
+        type: 'catalyst',
+        base_atk: 401,
+        stats: { hp_percent: 0.352 },
+        refinements: [{}, {}, {}, {}, {}] 
     }
 };

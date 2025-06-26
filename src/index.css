@@ -26,3 +26,17 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(156, 163, 175, 0.7); /* gray-400 with opacity */
 }
+
+/* --- NEW: Hide number input spinners for a cleaner look --- */
+
+/* For Webkit-based browsers (Chrome, Safari, Edge, Opera) */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* For Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}

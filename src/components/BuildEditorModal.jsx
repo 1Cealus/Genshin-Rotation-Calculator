@@ -1,12 +1,46 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { characterData } from '../data/character_database.js';
 import { weaponData } from '../data/weapon_database.js';
 import { artifactSets } from '../data/artifact_sets.js';
 import { artifactMainStats } from '../data/artifact_stats.js';
 import { calculateTotalStats } from '../logic/stat_calculator.js';
 
-// A component for a single artifact piece, managing its main stat and substats
-const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate, mainStatOptions }) => {
+// Substat Input: Manages its own state to prevent re-renders on every keystroke.
+const SubstatInput = ({ label, value, onChange, isPercent = false }) => {
+    const [localValue, setLocalValue] = useState(isPercent ? ((value || 0) * 100).toFixed(1) : (value || 0));
+
+    // Update local state if the parent prop changes
+    useEffect(() => {
+        setLocalValue(isPercent ? ((value || 0) * 100).toFixed(1) : (value || 0));
+    }, [value, isPercent]);
+
+    const handleLocalChange = (e) => {
+        setLocalValue(e.target.value);
+    };
+
+    const commitChange = () => {
+        const numericValue = parseFloat(localValue) || 0;
+        onChange(isPercent ? numericValue / 100 : numericValue);
+    };
+
+    return (
+        <div className="flex items-center justify-between text-sm">
+            <label className="text-gray-300">{label}</label>
+            <input
+                type="number"
+                step="0.1"
+                value={localValue}
+                onChange={handleLocalChange}
+                onBlur={commitChange} // Update parent state on blur
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} // Or on Enter
+                className="w-24 bg-gray-900 border border-gray-600 rounded-md p-1.5 text-right text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+        </div>
+    );
+};
+
+// Artifact Piece Editor: Now uses a controlled <details> element.
+const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate, mainStatOptions, isOpen, onToggle }) => {
     const handleMainStatChange = (e) => {
         onUpdate({ ...pieceData, mainStat: e.target.value });
     };
@@ -15,26 +49,15 @@ const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate
         const newSubstats = { ...(pieceData.substats || {}), [stat]: value };
         onUpdate({ ...pieceData, substats: newSubstats });
     };
-    
-    const SubstatInput = ({ label, value, onChange, isPercent = false }) => (
-        <div className="flex items-center justify-between text-sm">
-            <label className="text-gray-300">{label}</label>
-            <input
-                type="number"
-                step="0.1"
-                value={isPercent ? ((value || 0) * 100).toFixed(1) : (value || 0)}
-                onChange={e => onChange(isPercent ? parseFloat(e.target.value) / 100 : parseFloat(e.target.value))}
-                className="w-24 bg-gray-900 border border-gray-600 rounded-md p-1.5 text-right text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-        </div>
-    );
 
     return (
-        <details className="bg-gray-700/50 p-3 rounded-lg border border-gray-600/50" open>
-            <summary className="font-semibold text-white cursor-pointer capitalize">{pieceName}</summary>
-            <div className="mt-4 space-y-3 pt-3 border-t border-gray-600/50">
+        <details className="bg-gray-700/50 rounded-lg border border-gray-600/50" open={isOpen} onToggle={onToggle}>
+            <summary className="font-semibold text-white cursor-pointer capitalize p-3">
+                {pieceName}
+            </summary>
+            <div className="p-3 mt-2 border-t border-gray-600/50">
                 {mainStatOptions && (
-                    <div className="grid grid-cols-2 gap-4 items-center">
+                    <div className="grid grid-cols-2 gap-4 items-center mb-4">
                         <label className="text-sm text-gray-300">Main Stat</label>
                         <select
                             value={pieceData.mainStat || ''}
@@ -48,12 +71,17 @@ const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate
                     </div>
                 )}
                  <div className="space-y-2">
-                    <h4 className="text-sm font-bold text-gray-400">Substats</h4>
-                    <SubstatInput label="Crit Rate %" value={pieceData.substats?.crit_rate} onChange={val => handleSubstatChange('crit_rate', val)} isPercent/>
-                    <SubstatInput label="Crit DMG %" value={pieceData.substats?.crit_dmg} onChange={val => handleSubstatChange('crit_dmg', val)} isPercent/>
-                    <SubstatInput label="ATK %" value={pieceData.substats?.atk_percent} onChange={val => handleSubstatChange('atk_percent', val)} isPercent/>
-                    <SubstatInput label="EM" value={pieceData.substats?.em} onChange={val => handleSubstatChange('em', val)} />
+                    <h4 className="text-sm font-bold text-gray-400 mb-2">Substats</h4>
+                    <SubstatInput label="Crit Rate %" value={pieceData.substats?.crit_rate} onChange={val => handleSubstatChange('crit_rate', val)} isPercent />
+                    <SubstatInput label="Crit DMG %" value={pieceData.substats?.crit_dmg} onChange={val => handleSubstatChange('crit_dmg', val)} isPercent />
+                    <SubstatInput label="ATK %" value={pieceData.substats?.atk_percent} onChange={val => handleSubstatChange('atk_percent', val)} isPercent />
                     <SubstatInput label="Flat ATK" value={pieceData.substats?.flat_atk} onChange={val => handleSubstatChange('flat_atk', val)} />
+                    <SubstatInput label="HP %" value={pieceData.substats?.hp_percent} onChange={val => handleSubstatChange('hp_percent', val)} isPercent />
+                    <SubstatInput label="Flat HP" value={pieceData.substats?.flat_hp} onChange={val => handleSubstatChange('flat_hp', val)} />
+                    <SubstatInput label="DEF %" value={pieceData.substats?.def_percent} onChange={val => handleSubstatChange('def_percent', val)} isPercent />
+                    <SubstatInput label="Flat DEF" value={pieceData.substats?.flat_def} onChange={val => handleSubstatChange('flat_def', val)} />
+                    <SubstatInput label="EM" value={pieceData.substats?.em} onChange={val => handleSubstatChange('em', val)} />
+                    <SubstatInput label="ER %" value={pieceData.substats?.er} onChange={val => handleSubstatChange('er', val)} isPercent />
                 </div>
             </div>
         </details>
@@ -63,11 +91,13 @@ const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate
 // The main modal for editing a character's entire build
 export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
     if (!charKey || !build) return null;
+    
+    // State to control which artifact piece is currently open
+    const [openPiece, setOpenPiece] = useState('flower'); 
 
     const charInfo = characterData[charKey];
 
     const totalStats = useMemo(() => {
-        // Ensure that a valid weapon key exists before calculating.
         if (!build.weapon?.key) return {};
         return calculateTotalStats({
             character: charInfo,
@@ -76,13 +106,12 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
         });
     }, [build, charInfo]);
 
+    // This function is "expensive" as it triggers a full re-render.
     const handleUpdate = (path, value) => {
-        const newBuild = { ...build };
+        const newBuild = JSON.parse(JSON.stringify(build)); // Deep copy
         let current = newBuild;
         for (let i = 0; i < path.length - 1; i++) {
-            if (current[path[i]] === undefined) {
-                 current[path[i]] = {}; // Create nested object if it doesn't exist
-            }
+            current[path[i]] = current[path[i]] || {};
             current = current[path[i]];
         }
         current[path[path.length - 1]] = value;
@@ -92,7 +121,7 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
     const handlePieceUpdate = (pieceName, newPieceData) => {
         handleUpdate(['artifacts', pieceName], newPieceData);
     };
-
+    
     const StatDisplay = ({ label, value, isPercent = false, decimals = 1 }) => (
         <div className="flex justify-between bg-gray-700/50 p-2.5 rounded-md">
             <span className="text-gray-300">{label}</span>
@@ -107,10 +136,12 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
         </div>
     );
 
+    const artifactPieces = ['flower', 'plume', 'sands', 'goblet', 'circlet'];
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-40 p-4">
             <div className="bg-gray-900/80 rounded-2xl shadow-xl w-full max-w-6xl text-white border-2 border-gray-700 max-h-[90vh] flex flex-col">
-                <header className="p-4 border-b border-gray-700 flex justify-between items-center">
+                <header className="p-4 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
                      <h2 className="text-3xl font-bold text-cyan-400 flex items-center gap-4">
                         <img src={charInfo.iconUrl} alt={charInfo.name} className="w-12 h-12 rounded-full"/>
                         {charInfo.name} Build Editor
@@ -119,7 +150,8 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                 </header>
 
                 <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-6">
+                    {/* Column 1: Character, Weapon, Talents */}
+                    <div className="space-y-6 md:col-span-1">
                         <Section title="Character">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -150,7 +182,7 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                         </Section>
                          <Section title="Talent Levels">
                             <div className="grid grid-cols-3 gap-3">
-                                {Object.keys(build.talentLevels || {na:1, skill:1, burst:1}).map(tKey => (
+                                {['na', 'skill', 'burst'].map(tKey => (
                                     <div key={tKey} className="text-center">
                                         <label className="text-sm text-gray-400 block uppercase mb-1">{tKey}</label>
                                         <input type="number" min="1" max="15" value={build.talentLevels?.[tKey] || 1} onChange={e => handleUpdate(['talentLevels', tKey], parseInt(e.target.value))} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-center text-white" />
@@ -160,27 +192,44 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                         </Section>
                     </div>
 
-                    <div className="space-y-6">
+                    {/* Column 2: Artifacts */}
+                    <div className="space-y-6 md:col-span-1">
                         <Section title="Artifacts">
                              <div className="grid grid-cols-2 gap-4">
                                 <select value={build.artifacts?.set_2pc || 'no_set'} onChange={e => handleUpdate(['artifacts', 'set_2pc'], e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" title="2-Piece Set Bonus">
-                                    {Object.entries(artifactSets).map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
+                                    <option value="no_set">2-Piece: None</option>
+                                    {Object.entries(artifactSets).filter(([k]) => k !== 'no_set').map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
                                 </select>
                                 <select value={build.artifacts?.set_4pc || 'no_set'} onChange={e => handleUpdate(['artifacts', 'set_4pc'], e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white" title="4-Piece Set Bonus">
-                                    {Object.entries(artifactSets).map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
+                                    <option value="no_set">4-Piece: None</option>
+                                    {Object.entries(artifactSets).filter(([k]) => k !== 'no_set').map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
                                 </select>
                             </div>
                              <div className="space-y-2">
-                               <ArtifactPieceEditor pieceName="flower" pieceData={build.artifacts?.flower} onUpdate={(data) => handlePieceUpdate('flower', data)} />
-                               <ArtifactPieceEditor pieceName="plume" pieceData={build.artifacts?.plume} onUpdate={(data) => handlePieceUpdate('plume', data)} />
-                               <ArtifactPieceEditor pieceName="sands" pieceData={build.artifacts?.sands} onUpdate={(data) => handlePieceUpdate('sands', data)} mainStatOptions={artifactMainStats.sands} />
-                               <ArtifactPieceEditor pieceName="goblet" pieceData={build.artifacts?.goblet} onUpdate={(data) => handlePieceUpdate('goblet', data)} mainStatOptions={artifactMainStats.goblet} />
-                               <ArtifactPieceEditor pieceName="circlet" pieceData={build.artifacts?.circlet} onUpdate={(data) => handlePieceUpdate('circlet', data)} mainStatOptions={artifactMainStats.circlet} />
+                               {artifactPieces.map(pieceName => (
+                                   <ArtifactPieceEditor
+                                       key={pieceName}
+                                       pieceName={pieceName}
+                                       pieceData={build.artifacts?.[pieceName]}
+                                       onUpdate={(data) => handlePieceUpdate(pieceName, data)}
+                                       mainStatOptions={artifactMainStats[pieceName]}
+                                       isOpen={openPiece === pieceName}
+                                       onToggle={(e) => {
+                                           if (e.target.open) {
+                                               setOpenPiece(pieceName);
+                                           } else if (openPiece === pieceName) {
+                                                // Prevents closing the currently open one by clicking it again
+                                                e.preventDefault();
+                                           }
+                                       }}
+                                   />
+                               ))}
                             </div>
                         </Section>
                     </div>
                     
-                    <div className="space-y-3">
+                    {/* Column 3: Total Stats */}
+                    <div className="space-y-3 md:col-span-1">
                          <Section title="Total Stats">
                            <StatDisplay label="Max HP" value={totalStats.hp} />
                            <StatDisplay label="Total ATK" value={totalStats.atk} />
@@ -201,7 +250,7 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                     </div>
                 </div>
 
-                 <footer className="p-4 border-t border-gray-700 mt-auto">
+                 <footer className="p-4 border-t border-gray-700 mt-auto flex-shrink-0">
                      <button onClick={onClose} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Close</button>
                  </footer>
             </div>

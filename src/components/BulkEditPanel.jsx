@@ -1,9 +1,93 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { buffData } from '../data/buff_database.js';
 
-export const BulkEditPanel = ({ selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds }) => {
+// A single row in the bulk edit panel to manage one buff
+const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) => {
+    const [status, setStatus] = useState('off'); // 'on', 'off', or 'mixed'
+    const [stacks, setStacks] = useState(1);
+    const [isStacksMixed, setIsStacksMixed] = useState(false);
 
-    const availableBuffs = React.useMemo(() => {
+    useEffect(() => {
+        const activeActions = selectedActions.filter(a => a.config.activeBuffs[buffKey]?.active);
+        const activeCount = activeActions.length;
+
+        if (activeCount === 0) {
+            setStatus('off');
+        } else if (activeCount === selectedActions.length) {
+            setStatus('on');
+        } else {
+            setStatus('mixed');
+        }
+
+        if (buff.stackable) {
+            if (activeCount > 0) {
+                const firstStackValue = activeActions[0].config.activeBuffs[buffKey].stacks;
+                const allHaveSameStacks = activeActions.every(a => a.config.activeBuffs[buffKey].stacks === firstStackValue);
+                if (allHaveSameStacks) {
+                    setStacks(firstStackValue);
+                    setIsStacksMixed(false);
+                } else {
+                    setIsStacksMixed(true);
+                }
+            } else {
+                setStacks(1); // Default to 1 if none are active
+                setIsStacksMixed(false);
+            }
+        }
+    }, [selectedActions, buffKey, buff.stackable]);
+
+    const handleToggle = () => {
+        // If it's 'on', the new state should be 'off'. Otherwise ('off' or 'mixed'), it should become 'on'.
+        const shouldApply = status !== 'on'; 
+        onBulkApplyBuffs(buffKey, { active: shouldApply, stacks: stacks || 1 });
+    };
+
+    const handleStackChange = (e) => {
+        const newStacks = Math.max(1, Math.min(parseInt(e.target.value) || 1, buff.stackable.max_stacks));
+        setStacks(newStacks);
+        onBulkApplyBuffs(buffKey, { active: true, stacks: newStacks });
+    };
+
+    const toggleClasses = {
+        on: 'bg-green-500',
+        off: 'bg-gray-600',
+        mixed: 'bg-yellow-500'
+    };
+
+    return (
+        <div className="bg-gray-700/80 p-3 rounded-md flex items-center justify-between">
+            <div>
+                <p className="text-sm font-semibold text-gray-200">{buff.name}</p>
+                {buff.description && <p className="text-xs text-gray-400 max-w-xs">{buff.description}</p>}
+            </div>
+            <div className="flex items-center gap-3">
+                {buff.stackable && (
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-400">Stacks:</label>
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max={buff.stackable.max_stacks} 
+                            value={isStacksMixed ? '' : stacks}
+                            placeholder={isStacksMixed ? 'Mixed' : ''}
+                            onChange={handleStackChange}
+                            className="w-20 bg-gray-800 text-white p-1 rounded-md text-center border border-gray-600 placeholder-gray-500" 
+                        />
+                    </div>
+                )}
+                <button onClick={handleToggle} className={`w-24 text-white text-xs font-bold py-2 rounded-md transition-colors ${toggleClasses[status]}`}>
+                    {status.toUpperCase()}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+// The main panel component
+export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds }) => {
+
+    const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
@@ -11,36 +95,33 @@ export const BulkEditPanel = ({ selectedActionIds, onBulkApplyBuffs, onClose, te
             if (buff.source_type === 'character') return team.includes(buff.source_character);
             if (buff.source_type === 'weapon') return activeTeamWeapons.includes(buff.source_weapon);
             if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) return equipped4pcSets.includes(buff.source_set);
+            // Don't show 2pc set bonuses here as they are always active from stats
+            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false; 
             return false;
         });
     }, [team, characterBuilds]);
 
-    const handleApplyBuff = (buffKey, shouldApply) => {
-        const buffDefinition = buffData[buffKey];
-        const newBuffState = { active: shouldApply };
-        if (shouldApply && buffDefinition.stackable) {
-            newBuffState.stacks = buffDefinition.stackable.max_stacks; // Default to max stacks for bulk apply
-        }
-        onBulkApplyBuffs(buffKey, newBuffState);
-    };
+    const selectedActions = useMemo(() => 
+        rotation.filter(action => selectedActionIds.includes(action.id)),
+        [rotation, selectedActionIds]
+    );
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-900/80 rounded-2xl shadow-xl p-6 w-full max-w-lg text-white border-2 border-gray-700 flex flex-col gap-6">
+            <div className="bg-gray-900/80 rounded-2xl shadow-xl p-6 w-full max-w-2xl text-white border-2 border-gray-700 flex flex-col gap-6">
                 <h2 className="text-2xl font-bold text-cyan-400">Bulk Edit {selectedActionIds.length} Actions</h2>
                 <div>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-200">Apply/Remove Buffs</h3>
-                    <div className="max-h-80 overflow-y-auto bg-gray-800/50 p-3 rounded-md border border-gray-700 space-y-2">
+                    <div className="max-h-96 overflow-y-auto bg-gray-800/50 p-3 rounded-md border border-gray-700 space-y-2">
                         {availableBuffs.map(([key, buff]) => (
-                            <div key={key} className="bg-gray-700/80 p-3 rounded-md flex items-center justify-between">
-                                <span className="text-sm text-gray-200">{buff.name}</span>
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleApplyBuff(key, true)} className="bg-green-600/80 text-xs py-1 px-3 rounded-md hover:bg-green-600">Apply</button>
-                                    <button onClick={() => handleApplyBuff(key, false)} className="bg-red-500/70 text-xs py-1 px-3 rounded-md hover:bg-red-500">Remove</button>
-                                </div>
-                            </div>
+                            <BulkBuffControl
+                                key={key}
+                                buffKey={key}
+                                buff={buff}
+                                selectedActions={selectedActions}
+                                onBulkApplyBuffs={onBulkApplyBuffs}
+                            />
                         ))}
-                        {availableBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No team-wide buffs available.</p>}
+                        {availableBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No team-wide buffs available for bulk edit.</p>}
                     </div>
                 </div>
                 <button onClick={onClose} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Done</button>

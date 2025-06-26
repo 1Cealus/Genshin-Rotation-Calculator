@@ -1,7 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Define colors for elements for consistent charting
 const ELEMENT_COLORS = {
   pyro: '#ff7755',
   hydro: '#5599ff',
@@ -16,8 +15,6 @@ const ELEMENT_COLORS = {
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
-    // FIX: For Pie charts, the label is inside payload[0].payload.name
-    // For Bar charts, the label is in the 'label' prop. We prioritize the pie chart's payload.
     const name = payload[0].payload.name || label;
     return (
       <div className="bg-gray-800/80 backdrop-blur-sm p-3 border border-gray-600 rounded-lg">
@@ -32,12 +29,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 const AnalyticsDashboard = ({ analyticsData }) => {
     const { characterDps, elementDps, sourceDps } = analyticsData;
 
-    // Convert data for Pie charts
     const characterPieData = Object.entries(characterDps).map(([name, value]) => ({ name, value }));
     const elementPieData = Object.entries(elementDps).map(([name, value]) => ({ name, value }));
     
     const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-        if (percent < 0.05) return null; // Don't render labels for tiny slices
+        if (percent < 0.05) return null;
         const RADIAN = Math.PI / 180;
         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -50,11 +46,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
         );
     };
 
-
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Character DPS Pie Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-800/60 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-white mb-4">Character DPS Distribution</h3>
                     <ResponsiveContainer width="100%" height={250}>
@@ -68,7 +62,6 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                     </ResponsiveContainer>
                 </div>
 
-                {/* Element DPS Pie Chart */}
                 <div className="bg-gray-800/60 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-white mb-4">Element DPS Distribution</h3>
                      <ResponsiveContainer width="100%" height={250}>
@@ -83,10 +76,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                 </div>
             </div>
 
-            {/* Character DPS Bar Chart */}
             <div className="bg-gray-800/60 p-4 rounded-lg">
                 <h3 className="text-lg font-bold text-white mb-4">Character DPS</h3>
-                <ResponsiveContainer width="100%" height={characterPieData.length * 60}>
+                <ResponsiveContainer width="100%" height={Math.max(120, characterPieData.length * 60)}>
                     <BarChart data={characterPieData} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
                         <XAxis type="number" stroke="#9ca3af" />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={100} />
@@ -98,10 +90,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                 </ResponsiveContainer>
             </div>
 
-             {/* Source DPS Bar Chart */}
             <div className="bg-gray-800/60 p-4 rounded-lg">
                 <h3 className="text-lg font-bold text-white mb-4">Damage Source Breakdown</h3>
-                <ResponsiveContainer width="100%" height={sourceDps.length * 50}>
+                <ResponsiveContainer width="100%" height={Math.max(200, sourceDps.length * 50)}>
                     <BarChart data={sourceDps} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
                         <XAxis type="number" stroke="#9ca3af" />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={200} />

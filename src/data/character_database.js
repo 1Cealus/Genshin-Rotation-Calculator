@@ -1,5 +1,6 @@
 // This file contains all character-specific data.
-// - ADDED: 'alias' field for each talent for all characters.
+// - REFACTORED: Skirk's burst bonus is now a data object for the generic formula.
+// - ADDED: Skirk's constellation talents.
 export const characterData = {
     alhaitham: {
         name: 'Alhaitham',
@@ -8,6 +9,8 @@ export const characterData = {
         weapon_type: 'sword',
         base_atk: 313, base_hp: 13348, base_def: 782,
         element: 'dendro',
+        ascension_stat: 'dendro_dmg_bonus',
+        ascension_value: 0.288,
         talents: {
             na1: { name: 'NA 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.475, 0.513, 0.552, 0.600, 0.639, 0.687, 0.745, 0.803, 0.860, 0.927, 0.994, 1.060, 1.127, 1.194, 1.261], element: 'physical', can_be_infused: true },
             na2: { name: 'NA 2-Hit', alias: ['n2'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.485, 0.524, 0.563, 0.612, 0.651, 0.700, 0.759, 0.818, 0.877, 0.945, 1.013, 1.081, 1.149, 1.217, 1.285], element: 'physical', can_be_infused: true },
@@ -27,6 +30,8 @@ export const characterData = {
         weapon_type: 'bow',
         base_atk: 244, base_hp: 14450, base_def: 548,
         element: 'hydro',
+        ascension_stat: 'crit_rate',
+        ascension_value: 0.192,
         talents: {
             na1: { name: 'NA 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.403, 0.436, 0.468, 0.509, 0.541, 0.58, 0.627, 0.674, 0.721, 0.777, 0.832, 0.888, 0.943, 1.0, 1.056], element: 'physical' },
             skill: { name: 'Elemental Skill', alias: ['e'], scaling_stat: 'hp', scaling_talent: 'skill', multipliers: [0.228, 0.245, 0.262, 0.285, 0.302, 0.319, 0.342, 0.365, 0.387, 0.415, 0.443, 0.47, 0.503, 0.536, 0.568], element: 'hydro' },
@@ -40,6 +45,8 @@ export const characterData = {
         weapon_type: 'sword',
         base_atk: 244, base_hp: 15307, base_def: 621,
         element: 'hydro',
+        ascension_stat: 'crit_rate',
+        ascension_value: 0.192,
         talents: {
             na1: { name: 'NA 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.437, 0.472, 0.508, 0.552, 0.588, 0.632, 0.686, 0.741, 0.796, 0.859, 0.923, 0.986, 1.05, 1.113, 1.176], element: 'physical' },
             ca: { name: 'Charged Attack', alias: ['ca'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.88, 0.95, 1.02, 1.11, 1.18, 1.27, 1.37, 1.48, 1.58, 1.7, 1.82, 1.94, 2.06, 2.18, 2.3], element: 'physical'},
@@ -56,6 +63,8 @@ export const characterData = {
         weapon_type: 'catalyst',
         base_atk: 287, base_hp: 10409, base_def: 653,
         element: 'hydro',
+        ascension_stat: 'er',
+        ascension_value: 0.32,
         talents: {
             na1: { name: 'NA 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.378, 0.406, 0.434, 0.472, 0.5, 0.536, 0.582, 0.628, 0.674, 0.728, 0.782, 0.836, 0.89, 0.944, 0.998], element: 'hydro' },
             ca: { name: 'Charged Attack', alias: ['ca'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [1.49, 1.6, 1.71, 1.86, 1.97, 2.11, 2.29, 2.46, 2.64, 2.85, 3.06, 3.26, 3.47, 3.68, 3.89], element: 'hydro'},
@@ -70,19 +79,36 @@ export const characterData = {
         weapon_type: 'sword',
         base_atk: 342, base_hp: 14695, base_def: 799,
         element: 'cryo',
+        ascension_stat: 'crit_dmg',
+        ascension_value: 0.384,
         talents: {
             na1: { name: 'Normal Attack: 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.5, 0.54, 0.58, 0.63, 0.67, 0.71, 0.77, 0.83, 0.89, 0.95, 1.01, 1.08, 1.15, 1.22, 1.29], element: 'physical' },
             ca: { name: 'Normal Attack: CA', alias: ['ca'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [1.3, 1.4, 1.5, 1.65, 1.75, 1.86, 2.01, 2.17, 2.32, 2.5, 2.67, 2.84, 3.03, 3.21, 3.4], element: 'physical' },
             skill_cast: { name: 'Skill Cast (Havoc: Warp)', alias: ['e'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], element: 'cryo' },
-            burst_slash: { name: 'Burst Slash', alias: ['q'], scaling_stat: 'atk', scaling_talent: 'burst', multipliers: [1.8, 1.94, 2.07, 2.25, 2.39, 2.52, 2.7, 2.88, 3.06, 3.28, 3.51, 3.74, 3.98, 4.22, 4.46], element: 'cryo' },
-            skill_na1: { name: 'Seven-Phase Flash: 1-Hit', alias: ['s1'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [1.328, 1.428, 1.527, 1.66, 1.758, 1.859, 1.992, 2.125, 2.258, 2.424, 2.59, 2.756, 2.922, 3.088, 3.254], element: 'cryo'},
-            skill_na2: { name: 'Seven-Phase Flash: 2-Hit', alias: ['s2'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [1.198, 1.288, 1.378, 1.498, 1.587, 1.677, 1.797, 1.917, 2.036, 2.186, 2.336, 2.486, 2.635, 2.785, 2.935], element: 'cryo'},
-            skill_na3a: { name: 'Seven-Phase Flash: 3-Hit (1/2)', alias: ['s3a'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.757, 0.814, 0.871, 0.946, 1.003, 1.06, 1.136, 1.211, 1.287, 1.381, 1.475, 1.57, 1.664, 1.758, 1.853], element: 'cryo'},
-            skill_na3b: { name: 'Seven-Phase Flash: 3-Hit (2/2)', alias: ['s3b'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.757, 0.814, 0.871, 0.946, 1.003, 1.06, 1.136, 1.211, 1.287, 1.381, 1.475, 1.57, 1.664, 1.758, 1.853], element: 'cryo'},
-            skill_na4a: { name: 'Seven-Phase Flash: 4-Hit (1/2)', alias: ['s4a'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.805, 0.865, 0.926, 1.006, 1.067, 1.127, 1.208, 1.288, 1.369, 1.469, 1.57, 1.67, 1.771, 1.871, 1.972], element: 'cryo'},
-            skill_na4b: { name: 'Seven-Phase Flash: 4-Hit (2/2)', alias: ['s4b'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.805, 0.865, 0.926, 1.006, 1.067, 1.127, 1.208, 1.288, 1.369, 1.469, 1.57, 1.67, 1.771, 1.871, 1.972], element: 'cryo'},
-            skill_na5: { name: 'Seven-Phase Flash: 5-Hit', alias: ['s5'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [1.966, 2.113, 2.261, 2.458, 2.605, 2.752, 2.949, 3.146, 3.342, 3.588, 3.834, 4.08, 4.326, 4.572, 4.818], element: 'cryo'},
-            skill_ca: { name: 'Seven-Phase Flash: CA', alias: ['sca'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.445, 0.478, 0.512, 0.556, 0.59, 0.623, 0.668, 0.712, 0.757, 0.812, 0.868, 0.923, 0.979, 1.034, 1.09], element: 'cryo'},
+            skill_na1: { name: 'Seven-Phase Flash: 1-Hit', alias: ['s1'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [1.328, 1.428, 1.527, 1.66, 1.758, 1.859, 1.992, 2.125, 2.258, 2.424, 2.59, 2.756, 2.922, 3.088, 3.254], element: 'cryo'},
+            skill_na2: { name: 'Seven-Phase Flash: 2-Hit', alias: ['s2'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [1.198, 1.288, 1.378, 1.498, 1.587, 1.677, 1.797, 1.917, 2.036, 2.186, 2.336, 2.486, 2.635, 2.785, 2.935], element: 'cryo'},
+            skill_na3a: { name: 'Seven-Phase Flash: 3-Hit (1/2)', alias: ['s3a'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [0.757, 0.814, 0.871, 0.946, 1.003, 1.06, 1.136, 1.211, 1.287, 1.381, 1.475, 1.57, 1.664, 1.758, 1.853], element: 'cryo'},
+            skill_na3b: { name: 'Seven-Phase Flash: 3-Hit (2/2)', alias: ['s3b'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [0.757, 0.814, 0.871, 0.946, 1.003, 1.06, 1.136, 1.211, 1.287, 1.381, 1.475, 1.57, 1.664, 1.758, 1.853], element: 'cryo'},
+            skill_na4a: { name: 'Seven-Phase Flash: 4-Hit (1/2)', alias: ['s4a'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [0.805, 0.865, 0.926, 1.006, 1.067, 1.127, 1.208, 1.288, 1.369, 1.469, 1.57, 1.67, 1.771, 1.871, 1.972], element: 'cryo'},
+            skill_na4b: { name: 'Seven-Phase Flash: 4-Hit (2/2)', alias: ['s4b'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [0.805, 0.865, 0.926, 1.006, 1.067, 1.127, 1.208, 1.288, 1.369, 1.469, 1.57, 1.67, 1.771, 1.871, 1.972], element: 'cryo'},
+            skill_na5: { name: 'Seven-Phase Flash: 5-Hit', alias: ['s5'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [1.966, 2.113, 2.261, 2.458, 2.605, 2.752, 2.949, 3.146, 3.342, 3.588, 3.834, 4.08, 4.326, 4.572, 4.818], element: 'cryo'},
+            skill_ca: { name: 'Seven-Phase Flash: CA', alias: ['sca'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [0.445, 0.478, 0.512, 0.556, 0.59, 0.623, 0.668, 0.712, 0.757, 0.812, 0.868, 0.923, 0.979, 1.034, 1.09], element: 'cryo'},
+            burst_ruin_slash: { 
+                name: 'Havoc: Ruin (Slash)', alias: ['q_ruin_slash'], scaling_stat: 'atk', scaling_talent: 'burst', 
+                multipliers: [2.21, 2.37, 2.54, 2.76, 2.93, 3.1, 3.32, 3.54, 3.76, 4.03, 4.3, 4.57, 4.89, 5.21, 5.53], 
+                additive_mv_bonus_per_point: {
+                    scaling: [0.3478, 0.3739, 0.40, 0.4348, 0.4626, 0.4904, 0.5256, 0.5608, 0.596, 0.6402, 0.6844, 0.7286, 0.782, 0.8354, 0.8888],
+                    max_points: 12,
+                    constellation_mods: [{ con: 2, type: 'replace', value: 22 }]
+                },
+                element: 'cryo' 
+            },
+            burst_ruin_final_slash: { name: 'Havoc: Ruin (Final)', alias: ['q_ruin_final'], scaling_stat: 'atk', scaling_talent: 'burst', multipliers: [3.683, 3.959, 4.235, 4.603, 4.89, 5.177, 5.545, 5.913, 6.281, 6.74, 7.199, 7.658, 8.209, 8.76, 9.311], element: 'cryo' },
+            burst_extinction_cast: { name: 'Havoc: Extinction', alias: ['q_extinction'], scaling_stat: 'atk', scaling_talent: 'burst', multipliers: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], rift_bonus: [0.08, 0.12, 0.16, 0.20], element: 'cryo' },
+            a4_passive: { name: "Death's Crossing", alias: ['a4'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+            c1_crystal_blade: { name: "C1: Crystal Blade", alias: ['c1'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0], element: 'cryo' },
+            c6_havoc_sever_ruin: { name: "C6: Havoc Sever (Ruin)", alias: ['c6_ruin'], scaling_stat: 'atk', scaling_talent: 'burst', multipliers: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5], element: 'cryo' },
+            c6_havoc_sever_na: { name: "C6: Havoc Sever (NA)", alias: ['c6_na'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8], element: 'cryo' },
         }
     },
     escoffier: {
@@ -92,10 +118,13 @@ export const characterData = {
         weapon_type: 'polearm',
         base_atk: 347, base_hp: 13348, base_def: 731,
         element: 'cryo',
+        ascension_stat: 'crit_rate',
+        ascension_value: 0.192,
         talents: {
             na1: { name: 'NA 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.45, 0.48, 0.52, 0.56, 0.6, 0.64, 0.69, 0.74, 0.79, 0.84, 0.9, 0.96, 1.02, 1.08, 1.14], element: 'physical' },
             skill_mek: { name: 'Cooking Mek Damage', alias: ['e'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0.8, 0.86, 0.92, 1.0, 1.06, 1.12, 1.2, 1.28, 1.36, 1.45, 1.55, 1.64, 1.75, 1.85, 1.96], element: 'cryo' },
             burst_cast: { name: 'Burst Cast', alias: ['q'], scaling_stat: 'atk', scaling_talent: 'burst', multipliers: [3.0, 3.23, 3.45, 3.75, 3.98, 4.2, 4.5, 4.8, 5.1, 5.48, 5.85, 6.23, 6.6, 6.98, 7.35], element: 'cryo' },
+            a1_passive: { name: "RES Shred", alias: ['a1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
         }
     },
 };
