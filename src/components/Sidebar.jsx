@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { characterData } from '../data/character_database';
 import { enemyData } from '../data/enemy_database';
 
@@ -54,40 +54,110 @@ const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, us
     }
 };
 
+const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleLoad = (preset) => {
+        onLoadPreset(preset);
+        setIsOpen(false);
+    }
+
+    return (
+        <div className="relative">
+            <button onClick={() => setIsOpen(!isOpen)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 w-full text-xs rounded-md transition-colors">
+                Load Preset ({savedPresets.length})
+            </button>
+            {isOpen && (
+                <div className="absolute bottom-full left-0 w-full mb-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    {savedPresets.length > 0 ? (
+                        savedPresets.map(preset => (
+                            <div key={preset.id} className="flex items-center justify-between p-2 hover:bg-gray-700">
+                                <span className="text-sm text-white truncate">{preset.name}</span>
+                                <div className="flex gap-1">
+                                    <button onClick={() => handleLoad(preset)} className="bg-blue-600 text-xs px-2 py-1 rounded">Load</button>
+                                    <button onClick={() => onDeletePreset(preset.id)} className="bg-red-600 text-xs px-2 py-1 rounded">Del</button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="p-2 text-sm text-gray-400 text-center">No saved presets.</p>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
+
 export const Sidebar = ({ 
-    team, 
-    handleTeamChange, 
-    setEditingBuildFor,
-    enemyKey,
-    setEnemyKey,
-    user,
-    onSignOut,
-    isSaving,
+    team, handleTeamChange, setEditingBuildFor,
+    enemyKey, setEnemyKey, user, onSignOut, isSaving,
+    onExport, onImport, onClearAll,
+    presetName, setPresetName, savedPresets,
+    onSavePreset, onLoadPreset, onDeletePreset,
 }) => {
 
     return (
         <aside className="bg-gray-900/70 backdrop-blur-sm p-6 rounded-2xl border border-gray-700/50 flex flex-col gap-6 h-full">
-            <div className="flex justify-between items-center flex-shrink-0">
-                <div>
-                    <p className="font-bold text-white text-lg truncate" title={user.email}>
-                        {user.isAnonymous ? 'Anonymous User' : user.email}
-                    </p>
-                    <p className="text-xs text-gray-400">UID: {user.uid.substring(0, 10)}...</p>
-                </div>
-                <div className='flex items-center gap-2'>
-                    <span className={`text-xs transition-opacity duration-300 ${isSaving ? 'opacity-100' : 'opacity-0'} text-gray-400`}>Saving...</span>
-                    <button onClick={onSignOut} className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                        Sign Out
-                    </button>
+            {/* Top section */}
+            <div className="flex-shrink-0">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-white text-lg truncate" title={user.email}>
+                            {user.isAnonymous ? 'Anonymous User' : user.email}
+                        </p>
+                        <p className="text-xs text-gray-400">UID: {user.uid.substring(0, 10)}...</p>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                        <span className={`text-xs transition-opacity duration-300 ${isSaving ? 'opacity-100' : 'opacity-0'} text-gray-400`}>Saving...</span>
+                        <button onClick={onSignOut} className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+                            Sign Out
+                        </button>
+                    </div>
                 </div>
             </div>
 
+            {/* Preset Management */}
+            <div className="flex-shrink-0 space-y-3">
+                 <h2 className="text-xl font-bold text-white">Preset Management</h2>
+                 <div>
+                    <label className="text-sm text-gray-300 block mb-1">Current Setup Name</label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text"
+                            value={presetName}
+                            onChange={(e) => setPresetName(e.target.value)}
+                            placeholder="Enter setup name..."
+                            className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                         <button onClick={onSavePreset} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 text-sm rounded-md transition-colors">
+                            Save
+                        </button>
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                    <PresetManager savedPresets={savedPresets} onLoadPreset={onLoadPreset} onDeletePreset={onDeletePreset} />
+                    <button onClick={onExport} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 text-xs rounded-md transition-colors">
+                        Export to File
+                    </button>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                    <button onClick={onImport} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 text-xs rounded-md transition-colors">
+                        Import from File
+                    </button>
+                    <button onClick={onClearAll} className="bg-red-700 hover:bg-red-800 text-white font-bold py-2 text-xs rounded-md transition-colors">
+                        Clear Workspace
+                    </button>
+                 </div>
+            </div>
+
+
+            {/* Team Builds */}
             <div className="flex flex-col gap-4 flex-grow min-h-0">
                 <h2 className="text-2xl font-bold text-white flex-shrink-0">Team & Builds</h2>
                 <div className="space-y-3 overflow-y-auto pr-2 flex-grow">
                     {team.map((charKey, i) => (
                         <TeamSlot 
-                            key={i} 
+                            key={charKey ? `${charKey}-${i}` : `empty-${i}`} // FIX: Provide a more stable key
                             charKey={charKey} 
                             onSelect={e => handleTeamChange(i, e.target.value)}
                             onEdit={() => setEditingBuildFor(charKey)}
@@ -99,6 +169,7 @@ export const Sidebar = ({
                 </div>
             </div>
             
+            {/* Target Enemy */}
             <div className="flex-shrink-0">
                 <h2 className="text-2xl font-bold text-white mb-3">Target Enemy</h2>
                 <select 

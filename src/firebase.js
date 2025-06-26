@@ -13,7 +13,11 @@ import {
     getFirestore,
     doc,
     setDoc,
-    onSnapshot
+    onSnapshot,
+    // ADDED: These were missing from the exports
+    collection,
+    getDocs,
+    deleteDoc
 } from "firebase/firestore";
 
 // Import the configuration and validation flag from the new config file.
@@ -36,5 +40,9 @@ export {
     signInAnonymously,
     doc,
     setDoc,
-    onSnapshot
+    onSnapshot,
+    // ADDED: Export the newly imported functions
+    collection,
+    getDocs,
+    deleteDoc
 };
