@@ -2,41 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/* NEW COLOR PALETTE & THEME
+  This new theme uses a darker, less saturated background with more vibrant accents 
+  to create better contrast and visual separation between components.
+*/
+:root {
+  --color-bg-primary: #0D1117; /* Very dark navy, for the main page background */
+  --color-bg-secondary: #161B22; /* Lighter charcoal, for panels and cards */
+  --color-border-primary: #30363D; /* Subtle border for components */
+  --color-border-secondary: #8B949E; /* More visible border for interactive elements */
+  
+  --color-text-primary: #E6EDF3; /* Main text color, off-white */
+  --color-text-secondary: #8B949E; /* Secondary text color, for descriptions and labels */
+  
+  --color-accent-primary: #58A6FF; /* A vibrant blue for primary actions and highlights */
+  --color-accent-secondary: #3FB950; /* A success green for save buttons */
+}
+
 body {
-    @apply bg-gray-800 text-white;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: 'Inter', sans-serif;
 }
 
-/* Custom Scrollbar for a more modern look */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* --- FIXED: Universal Dark Inputs and Selects --- */
+/* This global rule ensures all text inputs and select dropdowns have a dark background,
+   fixing the readability issue you pointed out. */
+input[type=text],
+input[type=number],
+select {
+    @apply w-full bg-transparent border-2 border-[var(--color-border-primary)] rounded-md p-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)] focus:border-transparent transition-colors duration-200;
+}
+select {
+    @apply appearance-none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B949E' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
 }
 
-::-webkit-scrollbar-track {
-    background: transparent;
-}
 
-::-webkit-scrollbar-thumb {
-    background-color: rgba(107, 114, 128, 0.5); /* gray-500 with opacity */
-    border-radius: 4px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-}
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+::-webkit-scrollbar-thumb { background-color: var(--color-border-primary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-border-secondary); }
 
-::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(156, 163, 175, 0.7); /* gray-400 with opacity */
-}
-
-/* --- NEW: Hide number input spinners for a cleaner look --- */
-
-/* For Webkit-based browsers (Chrome, Safari, Edge, Opera) */
+/* Hide number input spinners */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
   -webkit-appearance: none; 
   margin: 0; 
 }
-
-/* For Firefox */
 input[type=number] {
   -moz-appearance: textfield;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-bold text-white transition-colors duration-200 ease-in-out shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-primary)];
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .btn-primary {
+    @apply bg-[var(--color-accent-primary)] text-white focus:ring-[var(--color-accent-primary)];
+  }
+  .btn-primary:hover {
+     background-color: #58a6ffcc; /* Slightly transparent on hover */
+  }
+  .btn-secondary {
+    @apply bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border-primary)] focus:ring-[var(--color-accent-primary)];
+  }
+  .btn-success {
+      @apply bg-[var(--color-accent-secondary)] hover:bg-opacity-80 focus:ring-[var(--color-accent-secondary)];
+  }
+  .btn-danger {
+      @apply bg-red-600 hover:bg-red-500 focus:ring-red-500;
+  }
 }
