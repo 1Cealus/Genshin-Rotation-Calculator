@@ -21,12 +21,10 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-/* --- FIXED: Added input[type=email] to the selector --- */
-/* This was the main cause of the unreadable text in the email field. */
 input[type=text],
 input[type=number],
 input[type=password],
-input[type=email], /* This line is new */
+input[type=email],
 textarea,
 select {
     @apply w-full bg-transparent border-2 border-[var(--color-border-primary)] rounded-md p-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)] focus:border-transparent transition-colors duration-200;
@@ -59,6 +57,11 @@ input[type=number] {
 }
 
 @layer components {
+  /* This rule resets the default button appearance, which was causing the issue */
+  .nav-btn {
+      @apply px-4 py-2 text-sm font-semibold border-b-2 transition-colors duration-200 bg-transparent;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-bold text-white transition-colors duration-200 ease-in-out shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-primary)];
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -67,7 +70,7 @@ input[type=number] {
     @apply bg-[var(--color-accent-primary)] text-white focus:ring-[var(--color-accent-primary)];
   }
   .btn-primary:hover {
-     background-color: #58a6ffcc; /* Slightly transparent on hover */
+     background-color: #58a6ffcc;
   }
   .btn-secondary {
     @apply bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border-primary)] focus:ring-[var(--color-accent-primary)];

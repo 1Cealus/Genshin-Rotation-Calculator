@@ -82,7 +82,7 @@ export const characterData = {
         ascension_stat: 'crit_dmg',
         ascension_value: 0.384,
         talents: {
-            na1: { name: 'Normal Attack: 1-Hit', alias: ['n1'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.5, 0.54, 0.58, 0.63, 0.67, 0.71, 0.77, 0.83, 0.89, 0.95, 1.01, 1.08, 1.15, 1.22, 1.29], element: 'physical' },
+            na1: { name: 'Normal Attack: 1-Hit', alias: ['n1'], description: 'First Hit of Skirks Normal Attack', scaling_stat: 'atk', scaling_talent: 'na', multipliers: [0.5, 0.54, 0.58, 0.63, 0.67, 0.71, 0.77, 0.83, 0.89, 0.95, 1.01, 1.08, 1.15, 1.22, 1.29], element: 'physical' },
             ca: { name: 'Normal Attack: CA', alias: ['ca'], scaling_stat: 'atk', scaling_talent: 'na', multipliers: [1.3, 1.4, 1.5, 1.65, 1.75, 1.86, 2.01, 2.17, 2.32, 2.5, 2.67, 2.84, 3.03, 3.21, 3.4], element: 'physical' },
             skill_cast: { name: 'Skill Cast (Havoc: Warp)', alias: ['e'], scaling_stat: 'atk', scaling_talent: 'skill', multipliers: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], element: 'cryo' },
             skill_na1: { name: 'Seven-Phase Flash: 1-Hit', alias: ['s1'], scaling_stat: 'atk', scaling_talent: 'skill', applies_talent_type_bonus: 'na', multipliers: [1.328, 1.428, 1.527, 1.66, 1.758, 1.859, 1.992, 2.125, 2.258, 2.424, 2.59, 2.756, 2.922, 3.088, 3.254], element: 'cryo'},

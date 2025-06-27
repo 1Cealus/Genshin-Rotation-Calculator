@@ -2,12 +2,17 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously } from './firebase';
 import { isFirebaseConfigValid } from './config.js';
 
-import { Header } from './components/Header';
+// Component Imports
+import { NavigationSidebar } from './components/NavigationSidebar';
 import { LoginModal } from './components/Login';
+
+// Page Imports
 import { HomePage } from './pages/HomePage';
 import { CalculatorPage } from './pages/CalculatorPage';
-import { AdminPage } from './pages/AdminPage'; // New Admin Page
+import { AdminPage } from './pages/AdminPage';
+import { ArchivePage } from './pages/ArchivePage';
 
+// Utility and Data Imports
 import { parseNotation } from './utils/parseNotation.js';
 import { characterData } from './data/character_database.js';
 import { weaponData } from './data/weapon_database.js';
@@ -48,8 +53,11 @@ export default function App() {
     const [page, setPage] = useState('home');
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [newsItems, setNewsItems] = useState([]);
+    
+    // Archive Page State
+    const [archiveView, setArchiveView] = useState({ page: 'list', key: null });
 
-    // ... (rest of the state variables remain the same)
+    // Calculator State
     const [team, setTeam] = useState(initialTeam);
     const [characterBuilds, setCharacterBuilds] = useState(initialBuilds);
     const [enemyKey, setEnemyKey] = useState('ruin_guard');
@@ -65,13 +73,20 @@ export default function App() {
     const [showBulkEdit, setShowBulkEdit] = useState(false);
     const importFileRef = useRef(null);
 
+    // Reset archive view when navigating away
+    useEffect(() => {
+        if (page !== 'archive') {
+            setArchiveView({ page: 'list', key: null });
+        }
+    }, [page]);
+
     // Fetch news items on initial load
     useEffect(() => {
         if (!db) return;
         const newsColRef = collection(db, 'news');
         const unsubNews = onSnapshot(newsColRef, (snapshot) => {
             const news = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                                    .sort((a,b) => b.date.seconds - a.date.seconds); // Sort by date descending
+                                    .sort((a,b) => b.date.seconds - a.date.seconds);
             setNewsItems(news);
         });
         return () => unsubNews();
@@ -116,7 +131,6 @@ export default function App() {
         return () => unsubAuth();
     }, []);
 
-    // ... (Autosave and other handlers remain the same)
     const handleSavePreset = async () => { if (!presetName) { alert("Please enter a name for the preset."); return; } if (!user) return; setIsSaving(true); const dataToSave = { name: presetName, team, characterBuilds, rotation, enemyKey, rotationDuration }; try { const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetName); await setDoc(presetDocRef, dataToSave); alert(`Preset "${presetName}" saved successfully!`); } catch (error) { console.error("Save preset error:", error); alert("Failed to save preset. Check Firebase rules."); } finally { setIsSaving(false); } };
     const handleLoadPreset = (preset) => { if (!preset) return; setTeam(preset.team); setCharacterBuilds(preset.characterBuilds); setRotation(preset.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(preset.enemyKey); setRotationDuration(preset.rotationDuration); setPresetName(preset.name); };
     const handleDeletePreset = async (presetId) => { if (!presetId || !user) return; if (window.confirm(`Are you sure you want to delete the preset "${presetId}"?`)) { try { const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetId); await deleteDoc(presetDocRef); } catch (error) { console.error("Delete preset error: ", error); alert("Failed to delete preset."); } } };
@@ -134,8 +148,7 @@ export default function App() {
     const updateCharacterBuild = (charKey, newBuild) => setCharacterBuilds(prev => ({ ...prev, [charKey]: newBuild }));
     const handleUpdateAction = (id, updatedAction) => setRotation(r => r.map(a => a.id === id ? updatedAction : a));
     const handleRemoveAction = (id) => setRotation(r => r.filter(a => a.id !== id));
-    
-    // ... (memoized calculations remain the same)
+
     const calculationResults = useMemo(() => { return rotation.map(action => { const charBuild = characterBuilds[action.characterKey]; const charInfo = characterData[action.characterKey]; const talentInfo = charInfo?.talents?.[action.talentKey]; if (!action.characterKey || !action.talentKey || !charBuild || !talentInfo) { return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0, damageType: 'physical' }, repeat: 1 }; } const state = { character: charInfo, characterBuild: charBuild, weapon: weaponData[charBuild.weapon?.key || 'no_weapon'], talent: talentInfo, activeBuffs: action.config.activeBuffs, reactionType: action.config.reactionType, infusion: action.config.infusion, enemy: enemyData[enemyKey], team, characterBuilds, talentKey: action.talentKey, config: action.config }; const damage = calculateFinalDamage(state); return { actionId: action.id, charKey: action.characterKey, talentKey: action.talentKey, damage, repeat: action.repeat }; }); }, [rotation, characterBuilds, enemyKey, team]);
     const analyticsData = useMemo(() => { const characterDps = {}, elementDps = {}, sourceDps = []; let totalDamage = 0; calculationResults.forEach(res => { if (!res || !res.charKey || !res.talentKey) return; const charName = characterData[res.charKey]?.name; if(!charName) return; const talentName = characterData[res.charKey].talents[res.talentKey].name; const damageType = res.damage.damageType; const actionTotalDamage = (res.damage.avg || 0) * (res.repeat || 1); characterDps[charName] = (characterDps[charName] || 0) + actionTotalDamage; elementDps[damageType] = (elementDps[damageType] || 0) + actionTotalDamage; sourceDps.push({ name: `${charName} - ${talentName} (x${res.repeat})`, value: actionTotalDamage, element: damageType }); totalDamage += actionTotalDamage; }); sourceDps.sort((a, b) => b.value - a.value); return { characterDps, elementDps, sourceDps, totalDamage }; }, [calculationResults]);
     const rotationSummary = useMemo(() => ({ totalDamage: analyticsData.totalDamage, dps: analyticsData.totalDamage / (rotationDuration || 1) }), [analyticsData.totalDamage, rotationDuration]);
@@ -169,21 +182,25 @@ export default function App() {
     };
 
     return (
-        <div className="bg-brand-dark min-h-screen">
+        <div className="bg-brand-dark min-h-screen text-white flex h-screen overflow-hidden">
             <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
             {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
-
-            <Header 
+            
+            <NavigationSidebar 
                 user={user}
                 isAdmin={isAdmin}
+                page={page}
                 setPage={setPage}
                 onLoginClick={() => setShowLoginModal(true)}
                 onSignOut={() => signOut(auth).catch(error => console.error("Sign out failed:", error))}
             />
             
-            {page === 'home' && <HomePage setPage={setPage} newsItems={newsItems} />}
-            {page === 'calculator' && user && <CalculatorPage {...calculatorPageProps} />}
-            {page === 'admin' && isAdmin && <AdminPage newsItems={newsItems}/>}
+            <main className="flex-grow flex-1 flex flex-col overflow-y-auto">
+                {page === 'home' && <HomePage setPage={setPage} newsItems={newsItems} />}
+                {page === 'calculator' && user && <div className="h-full"><CalculatorPage {...calculatorPageProps} /></div>}
+                {page === 'admin' && isAdmin && <AdminPage newsItems={newsItems}/>}
+                {page === 'archive' && <ArchivePage archiveView={archiveView} setArchiveView={setArchiveView} />}
+            </main>
         </div>
     );
 }
