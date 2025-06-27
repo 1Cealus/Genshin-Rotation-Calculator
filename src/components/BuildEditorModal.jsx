@@ -1,8 +1,47 @@
-// src/components/BuildEditorModal.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { calculateTotalStats } from '../logic/stat_calculator.js';
 
-// SubstatInput component remains the same...
+// --- NEW COMPONENT TO FIX THE SCROLL JUMP BUG ---
+const TalentInput = ({ tKey, value, onUpdate }) => {
+    // This component now manages its own temporary state while you type.
+    const [localLevel, setLocalLevel] = useState(value || 1);
+
+    // This ensures the local state updates if the prop changes from outside
+    useEffect(() => {
+        setLocalLevel(value || 1);
+    }, [value]);
+
+    const handleLocalChange = (e) => {
+        setLocalLevel(e.target.value);
+    };
+
+    // The expensive update to the main app state only happens ONCE, when you click away.
+    const handleBlur = () => {
+        const newLevel = Math.max(1, Math.min(15, parseInt(localLevel, 10) || 1));
+        if (newLevel !== value) {
+            onUpdate(newLevel);
+        }
+        // This makes sure the displayed number is correctly formatted (e.g., if you typed "0" it becomes "1")
+        setLocalLevel(newLevel); 
+    };
+
+    return (
+        <div className="text-center">
+            <label className="text-sm font-semibold text-gray-300 block uppercase mb-2">{tKey}</label>
+            <input 
+                type="number" 
+                min="1" 
+                max="15" 
+                value={localLevel} 
+                onChange={handleLocalChange}
+                onBlur={handleBlur} // Update on blur
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                className="w-full p-3 text-center rounded-lg border-2 border-slate-600 bg-slate-700 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-200 font-bold text-lg hover:border-slate-500" 
+            />
+        </div>
+    );
+};
+
 
 const SubstatInput = ({ label, value, onChange, isPercent = false }) => {
     const [localValue, setLocalValue] = useState(isPercent ? ((value || 0) * 100).toFixed(1) : (value || 0));
@@ -108,9 +147,10 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameDat
 
     const totalStats = useMemo(() => {
         if (!build.weapon?.key) return {};
+        const weaponInfo = weaponData[build.weapon.key] || weaponData['no_weapon'];
         const state = { 
             character: charInfo, 
-            weapon: weaponData[build.weapon.key], 
+            weapon: weaponInfo, 
             characterBuild: build, 
             team: [], 
             characterBuilds: {}, 
@@ -223,17 +263,12 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameDat
                         <Section title="Talent Levels">
                             <div className="grid grid-cols-3 gap-4">
                                 {['na', 'skill', 'burst'].map(tKey => (
-                                    <div key={tKey} className="text-center">
-                                        <label className="text-sm font-semibold text-gray-300 block uppercase mb-2">{tKey}</label>
-                                        <input 
-                                            type="number" 
-                                            min="1" 
-                                            max="15" 
-                                            value={build.talentLevels?.[tKey] || 1} 
-                                            onChange={e => handleUpdate(['talentLevels', tKey], parseInt(e.target.value))} 
-                                            className="w-full p-3 text-center rounded-lg border-2 border-slate-600 bg-slate-700 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-200 font-bold text-lg hover:border-slate-500" 
-                                        />
-                                    </div>
+                                    <TalentInput
+                                        key={tKey}
+                                        tKey={tKey}
+                                        value={build.talentLevels?.[tKey]}
+                                        onUpdate={newLevel => handleUpdate(['talentLevels', tKey], newLevel)}
+                                    />
                                 ))}
                             </div>
                         </Section>

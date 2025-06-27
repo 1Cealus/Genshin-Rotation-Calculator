@@ -1,6 +1,6 @@
-// src/pages/CharacterDetailPage.jsx
 import React, { useState, useMemo } from 'react';
 
+// The TalentCard and TabButton components remain the same
 const TalentCard = ({ name, description, attributes }) => (
     <div className="bg-[var(--color-bg-primary)] p-4 rounded-lg border border-[var(--color-border-primary)] h-full flex flex-col">
         <h4 className="text-md font-bold text-[var(--color-accent-primary)] mb-2">{name}</h4>
@@ -29,9 +29,10 @@ const TabButton = ({ label, isActive, onClick }) => (
      >
         {label}
     </button>
-)
+);
 
 export const CharacterDetailPage = ({ charKey, onBack, gameData }) => {
+    // Get characterData from the gameData prop
     const { characterData } = gameData;
     const [subPage, setSubPage] = useState('talents');
     const [displayTalentLevel, setDisplayTalentLevel] = useState(9);

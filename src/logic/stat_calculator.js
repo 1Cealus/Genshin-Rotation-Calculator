@@ -1,5 +1,3 @@
-// src/logic/stat_calculator.js
-
 const defaultFinalStats = {
     hp: 0, atk: 0, def: 0, crit_rate: 0.05, crit_dmg: 0.50, em: 0, er: 1.0,
     pyro_dmg_bonus: 0, hydro_dmg_bonus: 0, dendro_dmg_bonus: 0, electro_dmg_bonus: 0,
@@ -21,10 +19,18 @@ export function calculateTotalStats(state, gameData) {
     if (character.ascension_stat && character.ascension_value) {
         addBonus(character.ascension_stat, character.ascension_value);
     }
-    for (const key in weapon.stats) addBonus(key, weapon.stats[key]);
+    for (const key in weapon.stats) {
+        addBonus(key, weapon.stats[key]);
+    }
     const weaponRefinement = weapon.refinements[characterBuild.weapon.refinement - 1] || {};
-    if (weaponRefinement.effects) {
-        for (const key in weaponRefinement.effects) addBonus(key, weaponRefinement.effects[key]);
+    
+    // --- FIX IS HERE ---
+    // This now correctly loops through all stats in the refinement object (e.g., skill_dmg_bonus)
+    // instead of incorrectly looking for a nested "effects" object.
+    for (const stat in weaponRefinement) {
+        if (typeof weaponRefinement[stat] === 'number') {
+            addBonus(stat, weaponRefinement[stat]);
+        }
     }
 
     // 2. Artifact Stats (Main + Sub)
@@ -47,7 +53,7 @@ export function calculateTotalStats(state, gameData) {
         for (const key in buffData[`${set_2pc}_2pc`].effects) addBonus(key, buffData[`${set_2pc}_2pc`].effects[key]);
     }
 
-    // 4. Team-wide constellation buffs
+    // 4. Team-wide PASSIVE constellation buffs
     if (team && characterBuilds) {
         team.forEach(teammateKey => {
             if (!teammateKey) return;
@@ -55,7 +61,11 @@ export function calculateTotalStats(state, gameData) {
             if (!teammateBuild) return;
             
             Object.values(buffData).forEach(buffDef => {
-                if (buffDef.source_type === 'constellation' && buffDef.source_character === teammateKey && teammateBuild.constellation >= buffDef.constellation) {
+                if (buffDef.source_type === 'constellation' && 
+                    buffDef.is_passive && 
+                    buffDef.source_character === teammateKey && 
+                    teammateBuild.constellation >= buffDef.constellation) {
+                    
                     if (buffDef.effects) {
                          for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]);
                     }
@@ -64,7 +74,7 @@ export function calculateTotalStats(state, gameData) {
         });
     }
 
-    // 5. Active Action-Specific Buffs
+    // 5. Active Action-Specific Buffs (manually ticked buffs)
     if (activeBuffs) {
         Object.entries(activeBuffs).forEach(([buffKey, buffState]) => {
             if (!buffState.active) return;
@@ -74,6 +84,7 @@ export function calculateTotalStats(state, gameData) {
             if (buffDef.effects) for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]);
 
             if (buffDef.stackable && !buffDef.dynamic_effects) {
+                // For stackable weapon passives like Serpent Spine, get the per-stack value from the refinement data
                 const effectPerStack = buffDef.stackable.is_weapon_passive ? weaponRefinement : (buffDef.stackable.effects || {});
                 for (const stat in effectPerStack) {
                     if (typeof effectPerStack[stat] === 'number') addBonus(stat, effectPerStack[stat] * buffState.stacks);
@@ -83,7 +94,7 @@ export function calculateTotalStats(state, gameData) {
             if (buffDef.dynamic_effects) {
                 const dynamic = buffDef.dynamic_effects;
                 const holderBuild = characterBuilds[buffDef.source_character] || characterBuilds[team.find(c => characterBuilds[c]?.weapon.key === buffDef.source_weapon)];
-                const maxStacks = buffDef.stackable?.max_stacks || 1;
+                let maxStacks = buffDef.stackable?.max_stacks || 1;
                 const currentStacks = Math.min(buffState.stacks || 1, maxStacks);
 
                 if (!holderBuild && (dynamic.type !== 'ramping_stacking_stat')) return;

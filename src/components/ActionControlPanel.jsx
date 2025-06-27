@@ -1,32 +1,52 @@
-// src/components/ActionControlPanel.jsx
-
 import React, { useState, useMemo } from 'react';
-
-// REMOVED: No longer importing data directly
-// import { characterData } from '../data/character_database.js';
-// import { buffData } from '../data/buff_database.js';
 
 export const ActionControlPanel = ({ action, team, characterBuilds, updateAction, closePanel, gameData }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    // Get data from the gameData prop instead
-    const { characterData, buffData } = gameData;
+    const { buffData, characterData } = gameData;
 
     const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
         return Object.entries(buffData).filter(([buffKey, buff]) => {
-            if (buff.source_type === 'character' && team.includes(buff.source_character)) return true;
-            if (buff.source_type === 'weapon' && activeTeamWeapons.includes(buff.source_weapon)) return true;
+            let isAvailable = false;
+            // First, check if the buff is even possible with the current team
+            if (buff.source_type === 'character' && team.includes(buff.source_character)) isAvailable = true;
+            if (buff.source_type === 'weapon' && activeTeamWeapons.includes(buff.source_weapon)) isAvailable = true;
             if (buff.source_type === 'constellation' && team.includes(buff.source_character)) {
                  const build = characterBuilds[buff.source_character];
-                 return build && build.constellation >= buff.constellation;
+                 isAvailable = build && build.constellation >= buff.constellation;
             }
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) return true;
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false;
-            return false;
+            if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) isAvailable = true;
+            
+            if (!isAvailable) return false;
+
+            // --- NEW LOGIC ---
+            // Now, filter based on whether it's team-wide or self-only
+            if (buff.teamwide === false) { // This is a self-only buff
+                const actionCharacterBuild = characterBuilds[action.characterKey];
+                
+                // Check character-sourced self-buffs
+                if ((buff.source_type === 'character' || buff.source_type === 'constellation') && buff.source_character !== action.characterKey) {
+                    return false;
+                }
+                // Check weapon-sourced self-buffs
+                if (buff.source_type === 'weapon' && actionCharacterBuild?.weapon?.key !== buff.source_weapon) {
+                    return false;
+                }
+                // Check artifact-sourced self-buffs
+                if (buff.source_type === 'artifact_set') {
+                    const characterSets = [actionCharacterBuild?.artifacts?.set_2pc, actionCharacterBuild?.artifacts?.set_4pc];
+                    if (!characterSets.includes(buff.source_set)) {
+                        return false;
+                    }
+                }
+            }
+            
+            // If it's a team-wide buff (or teamwide is not specified), it's always shown
+            return true;
         });
-    }, [team, characterBuilds, buffData]);
+    }, [team, characterBuilds, buffData, action.characterKey]);
 
     const filteredBuffs = useMemo(() => {
         if (!searchTerm) return availableBuffs;

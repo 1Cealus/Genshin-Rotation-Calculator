@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously } from './firebase';
 import { isFirebaseConfigValid } from './config.js';
@@ -11,12 +10,16 @@ import { LoginModal } from './components/Login';
 import { HomePage } from './pages/HomePage';
 import { CalculatorPage } from './pages/CalculatorPage';
 import { AdminPage } from './pages/AdminPage';
-import { ArchivePage } from './pages/ArchivePage';
+import { CharacterArchivePage } from './pages/CharacterArchivePage';
+import { WeaponArchivePage } from './pages/WeaponArchivePage';
+import { ArtifactArchivePage } from './pages/ArtifactArchivePage';
+import { EnemyArchivePage } from './pages/EnemyArchivePage';
+
 
 // Utility and Data Imports
 import { parseNotation } from './utils/parseNotation.js';
 import { calculateFinalDamage } from './logic/damage_formula.js';
-import { getGameData } from './data/loader.js'; // Import the new data loader
+import { getGameData } from './data/loader.js';
 
 const ADMIN_UID = "RHK4HK166oe3kiCz3iEnybYcest1";
 const LoadingScreen = ({ text }) => (<div className="bg-brand-dark min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
@@ -52,11 +55,7 @@ export default function App() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [newsItems, setNewsItems] = useState([]);
     const [gameData, setGameData] = useState(null);
-    
-    // Archive Page State
-    const [archiveView, setArchiveView] = useState({ page: 'list', key: null });
 
-    // Calculator State
     const [team, setTeam] = useState(initialTeam);
     const [characterBuilds, setCharacterBuilds] = useState({});
     const [enemyKey, setEnemyKey] = useState('ruin_guard');
@@ -84,7 +83,7 @@ export default function App() {
             setIsGameDataLoading(false);
         }).catch(err => {
             setIsGameDataLoading(false);
-            alert("A critical error occurred while loading game data from Firestore. Please check the console.");
+            alert("A critical error occurred while loading game data from Firestore. Please check the console and ensure the data was uploaded correctly.");
             console.error(err);
         });
 
@@ -145,10 +144,34 @@ export default function App() {
     }, [isGameDataLoading, gameData]);
 
     useEffect(() => {
-        if (page !== 'archive') {
-            setArchiveView({ page: 'list', key: null });
+        if (isUserLoading || isGameDataLoading || !user || user.isAnonymous) {
+            return;
         }
-    }, [page]);
+
+        const debounceSave = setTimeout(() => {
+            console.log("Auto-saving workspace...");
+            
+            const dataToSave = {
+                team,
+                characterBuilds,
+                enemyKey,
+                rotation,
+                rotationDuration,
+                presetName
+            };
+            
+            const appId = 'default-app-id';
+            const mainDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/calculatorData`, 'main');
+            
+            setDoc(mainDocRef, dataToSave).catch(err => {
+                console.error("Error auto-saving workspace:", err);
+            });
+
+        }, 1500);
+
+        return () => clearTimeout(debounceSave);
+
+    }, [team, characterBuilds, enemyKey, rotation, rotationDuration, presetName, user, isUserLoading, isGameDataLoading]);
     
     const handleTeamChange = (index, charKey) => {
         const newTeam = [...team];
@@ -280,7 +303,11 @@ export default function App() {
                 {page === 'home' && <HomePage setPage={setPage} newsItems={newsItems} />}
                 {page === 'calculator' && user && gameData && <div className="h-full"><CalculatorPage {...calculatorPageProps} /></div>}
                 {page === 'admin' && isAdmin && <AdminPage newsItems={newsItems}/>}
-                {page === 'archive' && gameData && <ArchivePage archiveView={archiveView} setArchiveView={setArchiveView} gameData={gameData} />}
+                
+                {page === 'characters' && gameData && <CharacterArchivePage gameData={gameData} />}
+                {page === 'weapons' && gameData && <WeaponArchivePage gameData={gameData} />}
+                {page === 'artifacts' && gameData && <ArtifactArchivePage gameData={gameData} />}
+                {page === 'enemies' && gameData && <EnemyArchivePage gameData={gameData} />}
             </main>
         </div>
     );

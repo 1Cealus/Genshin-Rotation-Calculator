@@ -1,6 +1,6 @@
-// src/components/BulkEditPanel.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 
+// BulkBuffControl component remains the same...
 const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) => {
     const [status, setStatus] = useState('off');
     const [stacks, setStacks] = useState(1);
@@ -83,6 +83,7 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
     );
 };
 
+
 export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds, gameData }) => {
     const { buffData } = gameData;
 
@@ -90,14 +91,49 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
+        // --- NEW LOGIC STARTS HERE ---
+        // First, determine if all selected actions belong to a single character.
+        const selectedChars = new Set(
+            rotation
+                .filter(action => selectedActionIds.includes(action.id))
+                .map(action => action.characterKey)
+        );
+
+        const isSingleCharacterSelection = selectedChars.size === 1;
+        const singleCharacterKey = isSingleCharacterSelection ? selectedChars.values().next().value : null;
+
         return Object.entries(buffData).filter(([buffKey, buff]) => {
-            if (buff.source_type === 'character') return team.includes(buff.source_character);
-            if (buff.source_type === 'weapon') return activeTeamWeapons.includes(buff.source_weapon);
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) return equipped4pcSets.includes(buff.source_set);
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false; 
-            return false;
+            // Check if the buff provider is on the team
+            let isAvailableOnTeam = false;
+            if (buff.source_type === 'character' || buff.source_type === 'constellation') {
+                isAvailableOnTeam = team.includes(buff.source_character);
+            } else if (buff.source_type === 'weapon') {
+                isAvailableOnTeam = activeTeamWeapons.includes(buff.source_weapon);
+            } else if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) {
+                isAvailableOnTeam = equipped4pcSets.includes(buff.source_set);
+            }
+            if (!isAvailableOnTeam) return false;
+
+
+            // Now, filter based on teamwide status
+            if (buff.teamwide === false) { // This is a self-only buff
+                // If multiple characters are selected, don't show self-only buffs
+                if (!isSingleCharacterSelection) return false;
+                
+                // If one character is selected, only show if they are the source of the buff
+                const characterBuild = characterBuilds[singleCharacterKey];
+                if ((buff.source_type === 'character' || buff.source_type === 'constellation') && buff.source_character !== singleCharacterKey) return false;
+                if (buff.source_type === 'weapon' && characterBuild?.weapon?.key !== buff.source_weapon) return false;
+                if (buff.source_type === 'artifact_set') {
+                    const sets = [characterBuild?.artifacts?.set_2pc, characterBuild?.artifacts?.set_4pc];
+                    if (!sets.includes(buff.source_set)) return false;
+                }
+            }
+
+            // If we reach here, the buff is team-wide OR it's a valid self-only buff for the selection.
+            return true;
         });
-    }, [team, characterBuilds, buffData]);
+    }, [team, characterBuilds, buffData, rotation, selectedActionIds]);
 
     const selectedActions = useMemo(() => 
         rotation.filter(action => selectedActionIds.includes(action.id)),
@@ -119,7 +155,7 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
                                 onBulkApplyBuffs={onBulkApplyBuffs}
                             />
                         ))}
-                        {availableBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No team-wide buffs available for bulk edit.</p>}
+                        {availableBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No common buffs available for this selection.</p>}
                     </div>
                 </div>
                 <button onClick={onClose} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Done</button>
