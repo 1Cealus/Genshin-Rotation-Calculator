@@ -25,6 +25,7 @@ export const Header = ({ user, isAdmin, setPage, onLoginClick, onSignOut }) => {
                             </div>
                         )
                     ) : (
+                        // A loading skeleton for when user state is being determined
                         <div className="h-10 w-24 bg-[var(--color-border-primary)] animate-pulse rounded-md"></div>
                     )}
                 </div>

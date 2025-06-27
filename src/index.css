@@ -2,21 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* NEW COLOR PALETTE & THEME
-  This new theme uses a darker, less saturated background with more vibrant accents 
-  to create better contrast and visual separation between components.
-*/
 :root {
-  --color-bg-primary: #0D1117; /* Very dark navy, for the main page background */
-  --color-bg-secondary: #161B22; /* Lighter charcoal, for panels and cards */
-  --color-border-primary: #30363D; /* Subtle border for components */
-  --color-border-secondary: #8B949E; /* More visible border for interactive elements */
+  --color-bg-primary: #0D1117;
+  --color-bg-secondary: #161B22;
+  --color-border-primary: #30363D;
+  --color-border-secondary: #8B949E;
   
-  --color-text-primary: #E6EDF3; /* Main text color, off-white */
-  --color-text-secondary: #8B949E; /* Secondary text color, for descriptions and labels */
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #8B949E;
   
-  --color-accent-primary: #58A6FF; /* A vibrant blue for primary actions and highlights */
-  --color-accent-secondary: #3FB950; /* A success green for save buttons */
+  --color-accent-primary: #58A6FF;
+  --color-accent-secondary: #3FB950;
 }
 
 body {
@@ -25,14 +21,17 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-/* --- FIXED: Universal Dark Inputs and Selects --- */
-/* This global rule ensures all text inputs and select dropdowns have a dark background,
-   fixing the readability issue you pointed out. */
+/* --- FIXED: Added input[type=email] to the selector --- */
+/* This was the main cause of the unreadable text in the email field. */
 input[type=text],
 input[type=number],
+input[type=password],
+input[type=email], /* This line is new */
+textarea,
 select {
     @apply w-full bg-transparent border-2 border-[var(--color-border-primary)] rounded-md p-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)] focus:border-transparent transition-colors duration-200;
 }
+
 select {
     @apply appearance-none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B949E' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
