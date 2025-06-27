@@ -2,45 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- NEW COLOR THEME --- */
-/* This is a lighter, slate-based dark theme to make the UI less monotone. */
+/* --- UPDATED DARKER COLOR THEME (rev2) --- */
+/* Deep, high‑contrast slate theme with improved secondary contrast */
 :root {
-  --color-bg-primary: #1E293B; /* Slate 800 - Main page background */
-  --color-bg-secondary: #334155; /* Slate 700 - Panels and cards */
-  --color-border-primary: #2f343b; /* Slate 600 - Subtle borders */
-  --color-border-secondary: #3b4d68; /* Slate 400 - More visible borders */
-  --color-bg-accent: #385680; /* Slate 600 - Background for accent elements */
-  --color-text-primary: #F1F5F9; /* Slate 100 - Main text color */
-  --color-text-secondary: #94A3B8; /* Slate 400 - Secondary text */
-  
-  --color-accent-primary: #38BDF8; /* Sky 400 - A vibrant blue for actions */
-  --color-accent-secondary: #34D399; /* Emerald 400 - A success green */
+  --color-bg-primary: #0F172A; /* Slate 900 – Almost‑black */
+  --color-bg-secondary: #1E293B; /* Slate 800 – Panels / cards */
+  --color-border-primary: #27334A; /* Slate ~850 – Subtle borders */
+  --color-border-secondary: #334155; /* Slate 700 – Secondary surfaces */
+  --color-bg-accent: #233760; /* Darker slate accent */
+  --color-text-primary: #F8FAFC; /* Slate 50 – High‑contrast text */
+  --color-text-secondary: #CBD5E1; /* Slate 300 – Muted text */
+
+  --color-accent-primary: #0EA5E9; /* Sky 500 – Bright blue */
+  --color-accent-secondary: #059669; /* Emerald 600 – Success green */
 }
 
 body {
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
-    font-family: 'Inter', sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: 'Inter', sans-serif;
 }
 
-/* All inputs and selects will automatically use the new theme */
+/* Universal form controls */
 input[type=text],
 input[type=number],
 input[type=password],
 input[type=email],
 textarea,
 select {
-    @apply w-full bg-transparent border-2 border-[var(--color-border-primary)] rounded-md p-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)] focus:border-transparent transition-colors duration-200;
-}
-select {
-    @apply appearance-none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394A3B8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
+  @apply w-full bg-transparent border-2 border-[var(--color-border-primary)] rounded-md p-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)] focus:border-transparent transition-colors duration-200;
 }
 
+/* HIGH‑CONTRAST SELECT VARIANT (enemy picker & similar) */
+select:not([multiple]):not(.no-fill) {
+  @apply bg-[var(--color-border-secondary)] border-[var(--color-border-primary)];
+}
+
+select {
+  @apply appearance-none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23CBD5E1' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -49,37 +54,44 @@ select {
 ::-webkit-scrollbar-thumb:hover { background-color: var(--color-border-secondary); }
 
 /* Hide number input spinners */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 input[type=number] {
   -moz-appearance: textfield;
 }
 
 @layer components {
-  /* This rule resets the default button appearance */
   .nav-btn {
-      @apply px-4 py-2 text-sm font-semibold border-b-2 transition-colors duration-200 bg-transparent;
+    @apply px-4 py-2 text-sm font-semibold border-b-2 transition-colors duration-200 bg-transparent hover:text-[var(--color-accent-primary)];
   }
 
   .btn {
     @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-bold transition-colors duration-200 ease-in-out shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg-primary)];
   }
+
+  /* PRIMARY – Calls to action */
   .btn-primary {
     @apply bg-[var(--color-accent-primary)] text-slate-900 focus:ring-[var(--color-accent-primary)];
   }
   .btn-primary:hover {
-     filter: brightness(60%);
+    filter: brightness(90%);
   }
+
+  /* SECONDARY – Utility actions (now higher contrast) */
   .btn-secondary {
-    @apply bg-[var(--color-bg-secondary)] text-white hover:bg-[var(--color-border-primary)] focus:ring-[var(--color-accent-primary)];
+    @apply bg-[var(--color-border-secondary)] text-white border border-[var(--color-border-primary)] hover:bg-[var(--color-border-primary)] focus:ring-[var(--color-accent-primary)];
   }
+
+  /* SUCCESS / POSITIVE */
   .btn-success {
-      @apply bg-[var(--color-accent-secondary)] text-slate-900 focus:ring-[var(--color-accent-secondary)];
+    @apply bg-[var(--color-accent-secondary)] text-slate-900 focus:ring-[var(--color-accent-secondary)];
   }
+
+  /* DANGER / NEGATIVE */
   .btn-danger {
-      @apply bg-red-500 text-white hover:bg-red-600 focus:ring-red-600;
+    @apply bg-red-500 text-white hover:bg-red-600 focus:ring-red-600;
   }
 }
