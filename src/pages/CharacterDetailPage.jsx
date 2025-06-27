@@ -1,14 +1,12 @@
+// src/pages/CharacterDetailPage.jsx
 import React, { useState, useMemo } from 'react';
-import { characterData } from '../data/character_database.js';
 
-// The TalentCard component now shows multipliers by default
 const TalentCard = ({ name, description, attributes }) => (
     <div className="bg-[var(--color-bg-primary)] p-4 rounded-lg border border-[var(--color-border-primary)] h-full flex flex-col">
         <h4 className="text-md font-bold text-[var(--color-accent-primary)] mb-2">{name}</h4>
         <p className="text-xs text-[var(--color-text-secondary)] mb-4 flex-grow" dangerouslySetInnerHTML={{ __html: description }}></p>
         
         {attributes.length > 0 && (
-            // UPDATED: Added the "open" attribute to make this visible by default
             <details open className="mt-auto">
                 <summary className="text-sm font-semibold text-white cursor-pointer hover:text-[var(--color-accent-primary)]">Multipliers</summary>
                 <div className="text-xs space-y-1 mt-2">
@@ -33,7 +31,8 @@ const TabButton = ({ label, isActive, onClick }) => (
     </button>
 )
 
-export const CharacterDetailPage = ({ charKey, onBack }) => {
+export const CharacterDetailPage = ({ charKey, onBack, gameData }) => {
+    const { characterData } = gameData;
     const [subPage, setSubPage] = useState('talents');
     const [displayTalentLevel, setDisplayTalentLevel] = useState(9);
     const [activeTab, setActiveTab] = useState('All');
@@ -80,7 +79,6 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
                 &larr; Back to Character List
             </button>
             <div className="flex flex-col lg:flex-row gap-6">
-                {/* Left Navigation */}
                 <div className="lg:w-1/4 xl:w-1/5 flex-shrink-0">
                     <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg border border-[var(--color-border-primary)] sticky top-6">
                         <div className="flex items-center gap-4 mb-4">
@@ -97,7 +95,6 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
                     </div>
                 </div>
 
-                {/* Right Content */}
                 <div className="flex-grow">
                     {subPage === 'profile' && (
                         <div className="bg-[var(--color-bg-secondary)] p-6 rounded-lg border border-[var(--color-border-primary)]">

@@ -1,8 +1,7 @@
+// src/components/Sidebar.jsx
 import React, { useState } from 'react';
-import { characterData } from '../data/character_database';
-import { enemyData } from '../data/enemy_database';
 
-const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, usedCharacters }) => {
+const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, usedCharacters, characterData }) => {
     const charInfo = charKey ? characterData[charKey] : null;
 
     if (charInfo) {
@@ -54,7 +53,6 @@ const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, us
     }
 };
 
-
 const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSavePreset, presetName, setPresetName, onImport, onExport }) => {
     return (
         <div className="space-y-3 p-4 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)]">
@@ -73,7 +71,6 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
                 </div>
              </div>
              <div className="relative">
-                {/* FIXED: Dropdown styling for options */}
                 <select onChange={(e) => onLoadPreset(savedPresets.find(p => p.id === e.target.value))} className="w-full">
                     <option value="" className="bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]">Load a Preset...</option>
                     {savedPresets.map(preset => <option key={preset.id} value={preset.id} className="bg-[var(--color-bg-secondary)] text-white">{preset.name}</option>)}
@@ -87,7 +84,6 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
                     Export File
                 </button>
              </div>
-             {/* FIXED: Added max-height and overflow for scrolling */}
              {savedPresets.length > 0 && (
                 <div className="max-h-32 overflow-y-auto space-y-2 pr-2">
                     <h4 className="text-xs font-bold text-[var(--color-text-secondary)] uppercase">Manage Saved Presets</h4>
@@ -105,16 +101,16 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
 
 export const Sidebar = ({ 
     team, handleTeamChange, setEditingBuildFor,
-    enemyKey, setEnemyKey, user,
+    enemyKey, setEnemyKey, user, gameData,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
     onSavePreset, onLoadPreset, onDeletePreset,
 }) => {
     const [showPresets, setShowPresets] = useState(false);
+    const { characterData, enemyData } = gameData;
 
     return (
         <aside className="bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6 h-full">
-            {/* Team & Builds Section (Now at the top) */}
             <div className="flex flex-col gap-4 flex-grow min-h-0">
                 <h2 className="text-2xl font-bold text-white flex-shrink-0">Team & Builds</h2>
                 <div className="space-y-3 overflow-y-auto pr-2 flex-grow">
@@ -127,12 +123,12 @@ export const Sidebar = ({
                             onRemove={() => handleTeamChange(i, '')}
                             availableCharacters={characterData}
                             usedCharacters={team}
+                            characterData={characterData}
                         />
                     ))}
                 </div>
             </div>
             
-            {/* Target Enemy Section */}
             <div className="flex-shrink-0">
                 <h2 className="text-2xl font-bold text-white mb-3">Target Enemy</h2>
                 <select 
@@ -143,7 +139,6 @@ export const Sidebar = ({
                 </select>
             </div>
 
-            {/* Data Management Section (Now at the bottom) */}
             <div className="flex-shrink-0 space-y-2 mt-auto pt-4 border-t border-[var(--color-border-primary)]">
                 {showPresets && (
                      <PresetManager 

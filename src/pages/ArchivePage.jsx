@@ -1,17 +1,19 @@
 // src/pages/ArchivePage.jsx
-
 import React from 'react';
-import { characterData } from '../data/character_database.js';
 import { CharacterCard } from '../components/CharacterCard.jsx';
-import { CharacterDetailPage } from './CharacterDetailPage.jsx'; // Import the new detail page
+import { CharacterDetailPage } from './CharacterDetailPage.jsx';
 
-export const ArchivePage = ({ archiveView, setArchiveView }) => {
-    // Show the detail page if a character key is set
+export const ArchivePage = ({ archiveView, setArchiveView, gameData }) => {
+    const { characterData } = gameData;
+
     if (archiveView.page === 'detail' && archiveView.key) {
-        return <CharacterDetailPage charKey={archiveView.key} onBack={() => setArchiveView({ page: 'list', key: null })} />;
+        return <CharacterDetailPage 
+                    charKey={archiveView.key} 
+                    onBack={() => setArchiveView({ page: 'list', key: null })} 
+                    gameData={gameData} 
+               />;
     }
 
-    // Otherwise, show the character list
     const characterList = Object.values(characterData).sort((a, b) => a.name.localeCompare(b.name));
 
     return (
@@ -23,8 +25,7 @@ export const ArchivePage = ({ archiveView, setArchiveView }) => {
                     <CharacterCard 
                         key={charInfo.name} 
                         charInfo={charInfo} 
-                        // When a card is clicked, update the view state to show the details for that character
-                        onClick={() => setArchiveView({ page: 'detail', key: charInfo.alias[0] || charInfo.name.toLowerCase() })}
+                        onClick={() => setArchiveView({ page: 'detail', key: Object.keys(characterData).find(key => characterData[key] === charInfo) })}
                     />
                 ))}
             </div>

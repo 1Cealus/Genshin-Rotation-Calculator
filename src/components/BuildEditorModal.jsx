@@ -1,11 +1,9 @@
+// src/components/BuildEditorModal.jsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { characterData } from '../data/character_database.js';
-import { weaponData } from '../data/weapon_database.js';
-import { artifactSets } from '../data/artifact_sets.js';
-import { artifactMainStats } from '../data/artifact_stats.js';
 import { calculateTotalStats } from '../logic/stat_calculator.js';
 
-// Substat Input: Improved with better UX and dark styling
+// SubstatInput component remains the same...
+
 const SubstatInput = ({ label, value, onChange, isPercent = false }) => {
     const [localValue, setLocalValue] = useState(isPercent ? ((value || 0) * 100).toFixed(1) : (value || 0));
     const [isFocused, setIsFocused] = useState(false);
@@ -46,7 +44,6 @@ const SubstatInput = ({ label, value, onChange, isPercent = false }) => {
     );
 };
 
-// Artifact Piece Editor: Enhanced with dark theme
 const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate, mainStatOptions, isOpen, onToggle }) => {
     const handleMainStatChange = (e) => onUpdate({ ...pieceData, mainStat: e.target.value });
     const handleSubstatChange = (stat, value) => {
@@ -101,22 +98,29 @@ const ArtifactPieceEditor = ({ pieceName, pieceData = { substats: {} }, onUpdate
     );
 };
 
-// The main modal for editing a character's entire build
-export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
-    if (!charKey || !build) return null;
+export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameData }) => {
+    if (!charKey || !build || !gameData) return null;
     
+    const { characterData, weaponData, artifactSets, artifactStats } = gameData;
     const [openPiece, setOpenPiece] = useState('flower'); 
 
     const charInfo = characterData[charKey];
 
     const totalStats = useMemo(() => {
         if (!build.weapon?.key) return {};
-        const state = { character: charInfo, weapon: weaponData[build.weapon.key], characterBuild: build, team: [], characterBuilds: {}, activeBuffs: {} };
-        return calculateTotalStats(state);
-    }, [build, charInfo]);
+        const state = { 
+            character: charInfo, 
+            weapon: weaponData[build.weapon.key], 
+            characterBuild: build, 
+            team: [], 
+            characterBuilds: {}, 
+            activeBuffs: {} 
+        };
+        return calculateTotalStats(state, gameData);
+    }, [build, charInfo, weaponData, gameData]);
 
     const handleUpdate = (path, value) => {
-        const newBuild = JSON.parse(JSON.stringify(build)); // Deep copy
+        const newBuild = JSON.parse(JSON.stringify(build));
         let current = newBuild;
         for (let i = 0; i < path.length - 1; i++) {
             current = current[path[i]] = current[path[i]] || {};
@@ -269,7 +273,7 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose }) => {
                                            pieceName={pieceName}
                                            pieceData={build.artifacts?.[pieceName]}
                                            onUpdate={(data) => handlePieceUpdate(pieceName, data)}
-                                           mainStatOptions={artifactMainStats[pieceName]}
+                                           mainStatOptions={artifactStats[pieceName]}
                                            isOpen={openPiece === pieceName}
                                            onToggle={(e) => {
                                                if (e.target.open) setOpenPiece(pieceName);

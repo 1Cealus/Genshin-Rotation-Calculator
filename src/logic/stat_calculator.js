@@ -1,8 +1,4 @@
-// This file contains the logic for calculating total character stats.
-// - REFACTORED: All character-specific logic has been removed. The calculator is now generic.
-import { buffData } from '../data/buff_database.js';
-import { mainStatValues } from '../data/main_stat_values.js';
-import { characterData } from '../data/character_database.js';
+// src/logic/stat_calculator.js
 
 const defaultFinalStats = {
     hp: 0, atk: 0, def: 0, crit_rate: 0.05, crit_dmg: 0.50, em: 0, er: 1.0,
@@ -11,8 +7,10 @@ const defaultFinalStats = {
     all_res_shred: 0, all_dmg_bonus: 0, normal_attack_dmg_bonus: 0, burst_dmg_bonus: 0,
 };
 
-export function calculateTotalStats(state) {
+export function calculateTotalStats(state, gameData) {
     const { character, weapon, characterBuild, team, characterBuilds, activeBuffs } = state;
+    const { buffData, mainStatValues, characterData } = gameData;
+    
     if (!character || !weapon || !characterBuild) { return defaultFinalStats; }
     
     const baseStats = { atk: character.base_atk + weapon.base_atk, hp: character.base_hp, def: character.base_def };
@@ -32,16 +30,21 @@ export function calculateTotalStats(state) {
     // 2. Artifact Stats (Main + Sub)
     Object.values(characterBuild.artifacts).forEach(piece => {
         if (piece) {
-            if (piece.mainStat && mainStatValues[piece.mainStat]) addBonus(piece.mainStat, mainStatValues[piece.mainStat]);
-            if (piece.substats) for (const key in piece.substats) addBonus(key, piece.substats[key]);
+            if (piece.mainStat && mainStatValues[piece.mainStat]) {
+                // FIXED LINE: Access the .value property from the mainStatValues object
+                addBonus(piece.mainStat, mainStatValues[piece.mainStat].value);
+            }
+            if (piece.substats) {
+                for (const key in piece.substats) addBonus(key, piece.substats[key]);
+            }
         }
     });
 
     // 3. Artifact Set Bonuses (2pc only, 4pc are active buffs)
     const { set_2pc, set_4pc } = characterBuild.artifacts;
-    if (set_4pc !== 'no_set' && buffData[`${set_4pc}_2pc`]?.effects) {
+    if (set_4pc && set_4pc !== 'no_set' && buffData[`${set_4pc}_2pc`]?.effects) {
         for (const key in buffData[`${set_4pc}_2pc`].effects) addBonus(key, buffData[`${set_4pc}_2pc`].effects[key]);
-    } else if (set_2pc !== 'no_set' && buffData[`${set_2pc}_2pc`]?.effects) {
+    } else if (set_2pc && set_2pc !== 'no_set' && buffData[`${set_2pc}_2pc`]?.effects) {
         for (const key in buffData[`${set_2pc}_2pc`].effects) addBonus(key, buffData[`${set_2pc}_2pc`].effects[key]);
     }
 
@@ -52,7 +55,6 @@ export function calculateTotalStats(state) {
             const teammateBuild = characterBuilds[teammateKey];
             if (!teammateBuild) return;
             
-            // Generic loop for constellation buffs that affect the whole team
             Object.values(buffData).forEach(buffDef => {
                 if (buffDef.source_type === 'constellation' && buffDef.source_character === teammateKey && teammateBuild.constellation >= buffDef.constellation) {
                     if (buffDef.effects) {
@@ -70,10 +72,8 @@ export function calculateTotalStats(state) {
             const buffDef = buffData[buffKey];
             if (!buffDef) return;
 
-            // Static effects
             if (buffDef.effects) for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]);
 
-            // Stackable effects without special dynamic rules
             if (buffDef.stackable && !buffDef.dynamic_effects) {
                 const effectPerStack = buffDef.stackable.is_weapon_passive ? weaponRefinement : (buffDef.stackable.effects || {});
                 for (const stat in effectPerStack) {
@@ -81,7 +81,6 @@ export function calculateTotalStats(state) {
                 }
             }
 
-            // Generic dynamic effects
             if (buffDef.dynamic_effects) {
                 const dynamic = buffDef.dynamic_effects;
                 const holderBuild = characterBuilds[buffDef.source_character] || characterBuilds[team.find(c => characterBuilds[c]?.weapon.key === buffDef.source_weapon)];
@@ -112,7 +111,6 @@ export function calculateTotalStats(state) {
                          let maxStacks = buffDef.stackable.max_stacks;
                          let effectiveness = 1.0;
 
-                         // Apply constellation mods to the buff itself
                          if (buffDef.constellation_mods) {
                              buffDef.constellation_mods.forEach(mod => {
                                  if (holderBuild.constellation >= mod.con) {

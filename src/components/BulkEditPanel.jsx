@@ -1,13 +1,14 @@
+// src/components/BulkEditPanel.jsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { buffData } from '../data/buff_database.js';
 
-// A single row in the bulk edit panel to manage one buff
 const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) => {
-    const [status, setStatus] = useState('off'); // 'on', 'off', or 'mixed'
+    const [status, setStatus] = useState('off');
     const [stacks, setStacks] = useState(1);
     const [isStacksMixed, setIsStacksMixed] = useState(false);
 
     useEffect(() => {
+        if (!selectedActions || selectedActions.length === 0) return;
+        
         const activeActions = selectedActions.filter(a => a.config.activeBuffs[buffKey]?.active);
         const activeCount = activeActions.length;
 
@@ -30,14 +31,13 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
                     setIsStacksMixed(true);
                 }
             } else {
-                setStacks(1); // Default to 1 if none are active
+                setStacks(1);
                 setIsStacksMixed(false);
             }
         }
     }, [selectedActions, buffKey, buff.stackable]);
 
     const handleToggle = () => {
-        // If it's 'on', the new state should be 'off'. Otherwise ('off' or 'mixed'), it should become 'on'.
         const shouldApply = status !== 'on'; 
         onBulkApplyBuffs(buffKey, { active: shouldApply, stacks: stacks || 1 });
     };
@@ -83,9 +83,8 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
     );
 };
 
-
-// The main panel component
-export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds }) => {
+export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds, gameData }) => {
+    const { buffData } = gameData;
 
     const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
@@ -95,11 +94,10 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
             if (buff.source_type === 'character') return team.includes(buff.source_character);
             if (buff.source_type === 'weapon') return activeTeamWeapons.includes(buff.source_weapon);
             if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) return equipped4pcSets.includes(buff.source_set);
-            // Don't show 2pc set bonuses here as they are always active from stats
             if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false; 
             return false;
         });
-    }, [team, characterBuilds]);
+    }, [team, characterBuilds, buffData]);
 
     const selectedActions = useMemo(() => 
         rotation.filter(action => selectedActionIds.includes(action.id)),

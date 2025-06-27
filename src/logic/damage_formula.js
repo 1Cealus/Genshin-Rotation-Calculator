@@ -1,18 +1,15 @@
-// This file calculates the final damage of an action.
-// - REFACTORED: All character-specific logic has been removed. The formula is now generic.
+// src/logic/damage_formula.js
 import { calculateTotalStats } from './stat_calculator.js';
-import { buffData } from '../data/buff_database.js';
 
-export function calculateFinalDamage(state) {
+export function calculateFinalDamage(state, gameData) {
     const { talent, character, characterBuild, activeBuffs, talentKey, config } = state; 
-    const totalStats = calculateTotalStats(state); 
+    const { buffData } = gameData;
+    const totalStats = calculateTotalStats(state, gameData); 
 
     const talentCategory = talent.scaling_talent;
     const talentLevel = characterBuild.talentLevels?.[talentCategory] || 1;
     let baseMultiplier = talent.multipliers ? talent.multipliers[talentLevel - 1] : 0;
 
-    // --- Generic Additive MV Calculation ---
-    // Reads instructions from the talent data itself, no hardcoded logic here.
     if (talent.additive_mv_bonus_per_point) {
         const bonusInfo = talent.additive_mv_bonus_per_point;
         const subtletyPoints = config?.serpent_subtlety_consumed || 0;
@@ -20,7 +17,6 @@ export function calculateFinalDamage(state) {
         
         if (subtletyPoints > 50) {
             let maxBonusPoints = bonusInfo.max_points;
-            // Check for constellation modifications to the max points
             if (bonusInfo.constellation_mods) {
                 bonusInfo.constellation_mods.forEach(mod => {
                     if (characterBuild.constellation >= mod.con) {

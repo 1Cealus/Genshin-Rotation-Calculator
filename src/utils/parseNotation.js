@@ -1,7 +1,6 @@
-import { characterData } from "../data/character_database";
+// src/utils/parseNotation.js
 
-// --- Helper function to build alias maps ---
-const buildAliasMapForChar = (charKey) => {
+const buildAliasMapForChar = (charKey, characterData) => {
     const talentAliasMap = {};
     const char = characterData[charKey];
     if (char && char.talents) {
@@ -16,23 +15,23 @@ const buildAliasMapForChar = (charKey) => {
     return talentAliasMap;
 };
 
-
-export function parseNotation(notation, charKey) {
+export function parseNotation(notation, charKey, characterData) {
     const actions = [];
     const errors = [];
     
-    const talentAliasMap = buildAliasMapForChar(charKey);
+    if (!characterData || !characterData[charKey]) {
+        errors.push(`Character data not found for key: ${charKey}`);
+        return { actions, errors };
+    }
+    
+    const talentAliasMap = buildAliasMapForChar(charKey, characterData);
     const charName = characterData[charKey].name;
 
-    // This regex splits the string into tokens: 
-    // - parenthesized groups like (n1 ca)*2
-    // - or words (now allowing underscores) with optional multipliers like q_ruin_slash*3
     const tokens = notation.match(/(\([^)]+\)\s*\*?\s*\d*)|([a-zA-Z0-9_]+(?:\s*\*?\s*\d+)?)/g) || [];
 
     for (const token of tokens) {
         const groupRepeatMatch = token.match(/\((.*?)\)\s*\*?\s*(\d*)/);
 
-        // Handle repetition groups e.g. (n1 ca)*2
         if (token.startsWith('(') && groupRepeatMatch) { 
             const sequenceStr = groupRepeatMatch[1].trim();
             const count = groupRepeatMatch[2] ? parseInt(groupRepeatMatch[2], 10) : 1;
@@ -43,7 +42,6 @@ export function parseNotation(notation, charKey) {
                  continue;
             }
 
-            // Unroll the group into individual actions
             for (let i = 0; i < count; i++) {
                 for (const alias of sequenceAliases) {
                     const talentKey = talentAliasMap[alias.toLowerCase()];
@@ -54,7 +52,7 @@ export function parseNotation(notation, charKey) {
                     }
                 }
             }
-        } else { // Handle a single action alias, possibly with a multiplier e.g. n1*3
+        } else {
             const parts = token.match(/([a-zA-Z0-9_]+)(?:(?:\s*\*|\*)\s*(\d+))?/);
             if (!parts) continue;
 

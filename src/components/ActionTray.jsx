@@ -1,15 +1,20 @@
+// src/components/ActionTray.jsx
 import React, { useState } from 'react';
-import { characterData } from '../data/character_database';
 
-export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose }) => {
+export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose, gameData }) => {
     const [notation, setNotation] = useState('');
+    const { characterData } = gameData;
     const charInfo = characterData[charKey];
 
     const handleNotationAdd = () => {
         if (!notation) return;
         onAddNotation(notation, charKey);
-        setNotation(''); // Clear input after adding
+        setNotation('');
     };
+
+    if (!charInfo) {
+        return <div className="text-red-500 p-4">Error: Could not find character data for {charKey}</div>;
+    }
 
     return (
         <div className="bg-gray-800/80 p-4 rounded-lg mt-4 border border-cyan-500/50">
@@ -21,7 +26,6 @@ export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose }) => 
                 <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
             </div>
 
-            {/* Notation Input for this specific character */}
             <div className="mb-4">
                  <label className="text-sm text-gray-300 block mb-1">Add via Notation</label>
                  <div className="flex gap-2">
@@ -38,7 +42,6 @@ export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose }) => 
                  </div>
             </div>
 
-            {/* Clickable Action List */}
             <div>
                  <label className="text-sm text-gray-300 block mb-1">Or Click to Add</label>
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -49,7 +52,6 @@ export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose }) => 
                             className="bg-gray-700/80 hover:bg-gray-700 p-2 rounded-lg text-left transition-colors"
                         >
                             <p className="font-semibold text-white text-sm">{talent.name}</p>
-                            {/* FIX: Add a fallback for talents that might not have an alias array */}
                             <p className="text-xs text-cyan-400 font-mono">Alias: {(talent.alias || []).join(', ')}</p>
                         </button>
                     ))}

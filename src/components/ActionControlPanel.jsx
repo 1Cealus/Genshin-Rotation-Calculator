@@ -1,9 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { characterData } from '../data/character_database.js';
-import { buffData } from '../data/buff_database.js';
+// src/components/ActionControlPanel.jsx
 
-export const ActionControlPanel = ({ action, team, characterBuilds, updateAction, closePanel }) => {
+import React, { useState, useMemo } from 'react';
+
+// REMOVED: No longer importing data directly
+// import { characterData } from '../data/character_database.js';
+// import { buffData } from '../data/buff_database.js';
+
+export const ActionControlPanel = ({ action, team, characterBuilds, updateAction, closePanel, gameData }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    // Get data from the gameData prop instead
+    const { characterData, buffData } = gameData;
 
     const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
@@ -17,10 +23,10 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                  return build && build.constellation >= buff.constellation;
             }
             if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) return true;
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false; // Hide 2pc bonuses
+            if (buff.source_type === 'artifact_set' && buffKey.includes('_2pc')) return false;
             return false;
         });
-    }, [team, characterBuilds]);
+    }, [team, characterBuilds, buffData]);
 
     const filteredBuffs = useMemo(() => {
         if (!searchTerm) return availableBuffs;
@@ -84,7 +90,6 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                     )}
                 </div>
                 
-                {/* --- Skirk Burst Specific Controls --- */}
                 {action.characterKey === 'skirk' && ['burst_ruin_slash', 'burst_ruin_final_slash'].includes(action.talentKey) && (
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Serpent's Subtlety Consumed</label>
