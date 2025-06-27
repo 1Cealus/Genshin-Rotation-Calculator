@@ -1,4 +1,3 @@
-// src/pages/CalculatorPage.jsx
 import React, { useMemo } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
@@ -60,16 +59,28 @@ export const CalculatorPage = ({
                             <div className="flex justify-between items-center mb-4 flex-shrink-0">
                                 <h2 className="text-2xl font-semibold text-white">Rotation Builder ({rotation.length})</h2>
                                 <div className="flex items-center gap-2">
-                                    {selectedActionIds.length > 0 ? (<button onClick={() => setShowBulkEdit(true)} className="btn btn-secondary">Bulk Edit ({selectedActionIds.length})</button>) : (<><span className='text-sm text-[var(--color-text-secondary)] mr-2'>Add:</span>{activeTeam.map(c => (
-                                        <button 
-                                            key={c} 
-                                            onClick={() => setActiveActionTray(activeActionTray === c ? null : c)} 
-                                            className={`btn btn-secondary text-xs py-1 px-3 flex items-center gap-1.5 transition-colors ${activeActionTray === c ? 'bg-[var(--color-accent-primary)] text-white' : ''}`}
-                                        >
-                                            <img src={characterData[c]?.iconUrl} alt={characterData[c]?.name} className="w-5 h-5 rounded-full" />
-                                            {characterData[c]?.name.split(' ')[0]}
-                                        </button>
-                                    ))} </>)}
+                                    {selectedActionIds.length > 0 ? (<button onClick={() => setShowBulkEdit(true)} className="btn btn-secondary">Bulk Edit ({selectedActionIds.length})</button>) : (<><span className='text-sm text-[var(--color-text-secondary)] mr-2'>Add:</span>
+                                    
+                                    {/* --- FIX IS HERE --- */}
+                                    {activeTeam.map(c => {
+                                        const char = characterData[c];
+                                        // If character data hasn't loaded for this key, or is invalid, skip rendering this button.
+                                        if (!char || !char.name) return null; 
+
+                                        return (
+                                            <button 
+                                                key={c} 
+                                                onClick={() => setActiveActionTray(activeActionTray === c ? null : c)} 
+                                                className={`btn btn-secondary text-xs py-1 px-3 flex items-center gap-1.5 transition-colors ${activeActionTray === c ? 'bg-[var(--color-accent-primary)] text-white' : ''}`}
+                                            >
+                                                <img src={char.iconUrl} alt={char.name} className="w-5 h-5 rounded-full" />
+                                                {char.name.split(' ')[0]}
+                                            </button>
+                                        );
+                                    })}
+                                    {/* --- END FIX --- */}
+                                    
+                                    </>)}
                                 </div>
                             </div>
                             {activeActionTray && (<div className="flex-shrink-0"><ActionTray charKey={activeActionTray} onAddNotation={handleAddFromNotation} onAddSingle={handleAddSingleAction} onClose={() => setActiveActionTray(null)} gameData={gameData}/></div>)}

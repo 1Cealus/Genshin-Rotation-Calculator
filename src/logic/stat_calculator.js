@@ -31,7 +31,6 @@ export function calculateTotalStats(state, gameData) {
     Object.values(characterBuild.artifacts).forEach(piece => {
         if (piece) {
             if (piece.mainStat && mainStatValues[piece.mainStat]) {
-                // FIXED LINE: Access the .value property from the mainStatValues object
                 addBonus(piece.mainStat, mainStatValues[piece.mainStat].value);
             }
             if (piece.substats) {
@@ -84,10 +83,19 @@ export function calculateTotalStats(state, gameData) {
             if (buffDef.dynamic_effects) {
                 const dynamic = buffDef.dynamic_effects;
                 const holderBuild = characterBuilds[buffDef.source_character] || characterBuilds[team.find(c => characterBuilds[c]?.weapon.key === buffDef.source_weapon)];
+                const maxStacks = buffDef.stackable?.max_stacks || 1;
+                const currentStacks = Math.min(buffState.stacks || 1, maxStacks);
 
-                if (!holderBuild) return;
+                if (!holderBuild && (dynamic.type !== 'ramping_stacking_stat')) return;
 
                 switch(dynamic.type) {
+                    case 'ramping_stacking_stat': {
+                        const baseValue = dynamic.base_value || 0;
+                        const valuePerStack = dynamic.value_per_stack || 0;
+                        const totalBonus = baseValue + (valuePerStack * currentStacks);
+                        addBonus(dynamic.stat, totalBonus);
+                        break;
+                    }
                     case 'team_composition': {
                         let count = team.filter(memberKey => memberKey && characterData[memberKey] && dynamic.elements.includes(characterData[memberKey].element)).length;
                         if (count > 0 && dynamic.values[count - 1]) addBonus(dynamic.effect, dynamic.values[count - 1]);
@@ -107,8 +115,6 @@ export function calculateTotalStats(state, gameData) {
                     case 'talent_level_stacking_stat': {
                          const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
                          const bonusPerStack = dynamic.values[talentLevel - 1] || 0;
-                         
-                         let maxStacks = buffDef.stackable.max_stacks;
                          let effectiveness = 1.0;
 
                          if (buffDef.constellation_mods) {
@@ -120,7 +126,6 @@ export function calculateTotalStats(state, gameData) {
                              });
                          }
                          
-                         const currentStacks = Math.min(buffState.stacks, maxStacks);
                          addBonus(dynamic.stat, (bonusPerStack * currentStacks) * effectiveness);
                          break;
                     }

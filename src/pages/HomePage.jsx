@@ -36,7 +36,7 @@ export const HomePage = ({ setPage, newsItems }) => {
                 {/* Features Section */}
                 <div className="grid md:grid-cols-3 gap-8 my-16">
                     <FeatureCard title="In-Depth Stat Calculation" description="Accounts for character stats, weapons, artifacts (main/sub/sets), constellations, and talent levels." icon={<IconCalc />} />
-                    <FeatureCard title="Complex Buff Management" description="Simulate any combination of buffs, from team-wide effects like Noblesse Oblige to character-specific passives." icon={<IconBuffs />} />
+                    <FeatureCard title="Complex Buff Management" description="Simulate any combination of buffs with extreme precision as each action will be configurable with its own set of buffs." icon={<IconBuffs />} />
                     <FeatureCard title="Flexible Rotation Builder" description="Build complex action sequences with our powerful notation system or a simple point-and-click interface." icon={<IconRotation />} />
                 </div>
 
