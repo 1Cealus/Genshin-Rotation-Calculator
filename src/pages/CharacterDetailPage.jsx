@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { characterData } from '../data/character_database.js';
 
-// The TalentCard component is updated for a more compact look
+// The TalentCard component now shows multipliers by default
 const TalentCard = ({ name, description, attributes }) => (
     <div className="bg-[var(--color-bg-primary)] p-4 rounded-lg border border-[var(--color-border-primary)] h-full flex flex-col">
         <h4 className="text-md font-bold text-[var(--color-accent-primary)] mb-2">{name}</h4>
         <p className="text-xs text-[var(--color-text-secondary)] mb-4 flex-grow" dangerouslySetInnerHTML={{ __html: description }}></p>
         
         {attributes.length > 0 && (
-            <details className="mt-auto">
+            // UPDATED: Added the "open" attribute to make this visible by default
+            <details open className="mt-auto">
                 <summary className="text-sm font-semibold text-white cursor-pointer hover:text-[var(--color-accent-primary)]">Multipliers</summary>
                 <div className="text-xs space-y-1 mt-2">
                     {attributes.map((attr, index) => (
@@ -23,11 +24,10 @@ const TalentCard = ({ name, description, attributes }) => (
     </div>
 );
 
-// A new component for the tab buttons
 const TabButton = ({ label, isActive, onClick }) => (
      <button 
         onClick={onClick}
-        className={`px-4 py-2 font-semibold text-sm rounded-md transition-colors ${isActive ? 'bg-[var(--color-accent-primary)] text-white' : 'bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-border-primary)] hover:text-white'}`}
+        className={`px-4 py-2 font-semibold text-sm rounded-md transition-colors ${isActive ? 'bg-[var(--color-accent-primary)] text-slate-900' : 'bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-border-primary)] hover:text-white'}`}
      >
         {label}
     </button>
@@ -36,18 +36,14 @@ const TabButton = ({ label, isActive, onClick }) => (
 export const CharacterDetailPage = ({ charKey, onBack }) => {
     const [subPage, setSubPage] = useState('talents');
     const [displayTalentLevel, setDisplayTalentLevel] = useState(9);
-    
-    // State to manage the active talent tab
     const [activeTab, setActiveTab] = useState('All');
 
     const charInfo = characterData[charKey];
 
-    // This helper function now uses the new state for the talent level
     const getTalentAttributes = (talent) => {
-        const talentLevelIndex = displayTalentLevel - 1; // Use the state value
+        const talentLevelIndex = displayTalentLevel - 1;
         const attributes = [];
 
-        // This checks if the talent has multipliers and adds them to the list
         if (talent.multipliers && talent.multipliers[talentLevelIndex] !== undefined) {
              let label = talent.scaling_stat === 'hp' ? 'HP%' : 'DMG%';
              let value = talent.multipliers[talentLevelIndex] * 100;
@@ -56,11 +52,9 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
         if (talent.flat_multipliers && talent.flat_multipliers[talentLevelIndex] !== undefined) {
              attributes.push({ label: 'Flat DMG Additive', value: `${(talent.flat_multipliers[talentLevelIndex] * 100).toFixed(1)}%` });
         }
-        // You can add more checks for other types of scaling here in the future
         return attributes;
     };
     
-    // This helper function determines a talent's category based on its key
     const getTalentCategory = (key) => {
         if (key.startsWith('na') || key.startsWith('ca')) return 'Normal Attack';
         if (key.startsWith('skill')) return 'Skill';
@@ -69,7 +63,6 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
         return 'Other';
     };
 
-    // This filters the talents based on the active tab
     const filteredTalents = useMemo(() => {
         if (!charInfo) return [];
         const allTalents = Object.entries(charInfo.talents).map(([key, value]) => ({...value, key}));
@@ -98,8 +91,8 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
                             </div>
                         </div>
                         <nav className="space-y-1">
-                            <button onClick={() => setSubPage('profile')} className={`w-full text-left p-3 rounded font-semibold ${subPage === 'profile' ? 'bg-[var(--color-accent-primary)] text-white' : 'hover:bg-[var(--color-border-primary)] text-[var(--color-text-secondary)] hover:text-white'}`}>Profile</button>
-                            <button onClick={() => setSubPage('talents')} className={`w-full text-left p-3 rounded font-semibold ${subPage === 'talents' ? 'bg-[var(--color-accent-primary)] text-white' : 'hover:bg-[var(--color-border-primary)] text-[var(--color-text-secondary)] hover:text-white'}`}>Talents</button>
+                            <button onClick={() => setSubPage('profile')} className={`w-full text-left p-3 rounded font-semibold ${subPage === 'profile' ? 'bg-[var(--color-accent-primary)] text-slate-900' : 'hover:bg-[var(--color-border-primary)] text-[var(--color-text-secondary)] hover:text-white'}`}>Profile</button>
+                            <button onClick={() => setSubPage('talents')} className={`w-full text-left p-3 rounded font-semibold ${subPage === 'talents' ? 'bg-[var(--color-accent-primary)] text-slate-900' : 'hover:bg-[var(--color-border-primary)] text-[var(--color-text-secondary)] hover:text-white'}`}>Talents</button>
                         </nav>
                     </div>
                 </div>
@@ -119,7 +112,6 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
                     )}
                     {subPage === 'talents' && (
                         <div className="space-y-6">
-                            {/* Talent Level Slider */}
                             <div className="bg-[var(--color-bg-secondary)] p-4 rounded-lg border border-[var(--color-border-primary)]">
                                 <label htmlFor="talentLevel" className="block text-lg font-bold text-white mb-2">Display Talent Level: {displayTalentLevel}</label>
                                 <input 
@@ -133,14 +125,12 @@ export const CharacterDetailPage = ({ charKey, onBack }) => {
                                 />
                             </div>
 
-                            {/* Tab Navigation for Talents */}
                             <div className="flex items-center gap-2 p-2 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)]">
                                 {['All', 'Normal Attack', 'Skill', 'Burst', 'Passive'].map(tabName => (
                                     <TabButton key={tabName} label={tabName} isActive={activeTab === tabName} onClick={() => setActiveTab(tabName)} />
                                 ))}
                             </div>
 
-                            {/* Two-column grid for talent cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {filteredTalents.map(talent => (
                                     <TalentCard 

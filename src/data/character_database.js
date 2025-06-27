@@ -5,7 +5,7 @@ export const characterData = {
     alhaitham: {
         name: 'Alhaitham',
         alias: ['al', 'haitham'],
-        iconUrl: 'https://rerollcdn.com/GENSHIN/Characters/Alhaitham.png',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/alhatham_078_icon.webp',
         weapon_type: 'sword',
         base_atk: 313, base_hp: 13348, base_def: 782,
         element: 'dendro',
@@ -26,7 +26,7 @@ export const characterData = {
     yelan: {
         name: 'Yelan',
         alias: ['yelan'],
-        iconUrl: 'https://rerollcdn.com/GENSHIN/Characters/Yelan.png',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/yelan_060_icon.webp',
         weapon_type: 'bow',
         base_atk: 244, base_hp: 14450, base_def: 548,
         element: 'hydro',
@@ -41,7 +41,7 @@ export const characterData = {
     furina: {
         name: 'Furina',
         alias: ['furina'],
-        iconUrl: 'https://rerollcdn.com/GENSHIN/Characters/Furina.png',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/furina_089_icon.webp',
         weapon_type: 'sword',
         base_atk: 244, base_hp: 15307, base_def: 621,
         element: 'hydro',
@@ -59,7 +59,7 @@ export const characterData = {
     mona: {
         name: 'Mona',
         alias: ['mona'],
-        iconUrl: 'https://rerollcdn.com/GENSHIN/Characters/Mona.png',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/mona_041_icon.webp',
         weapon_type: 'catalyst',
         base_atk: 287, base_hp: 10409, base_def: 653,
         element: 'hydro',
@@ -75,7 +75,7 @@ export const characterData = {
     skirk: {
         name: 'Skirk',
         alias: ['skirk'],
-        iconUrl: 'https://placehold.co/128x128/a0deff/000000?text=Skirk',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/skirknew_114_icon.webp',
         weapon_type: 'sword',
         base_atk: 342, base_hp: 14695, base_def: 799,
         element: 'cryo',
@@ -114,7 +114,7 @@ export const characterData = {
     escoffier: {
         name: 'Escoffier',
         alias: ['escoffier'],
-        iconUrl: 'https://placehold.co/128x128/e2e8f0/2d3748?text=Escoffier',
+        iconUrl: 'https://gensh.honeyhunterworld.com/img/escoffier_112_icon.webp',
         weapon_type: 'polearm',
         base_atk: 347, base_hp: 13348, base_def: 731,
         element: 'cryo',
