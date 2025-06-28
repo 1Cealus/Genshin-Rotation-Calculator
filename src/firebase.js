@@ -1,5 +1,3 @@
-// src/firebase.js
-
 import { initializeApp } from "firebase/app";
 import { 
     getAuth,
@@ -14,21 +12,24 @@ import {
     doc,
     setDoc,
     onSnapshot,
-    // ADDED: These were missing from the exports
     collection,
     getDocs,
-    deleteDoc
+    deleteDoc,
+    query,
+    orderBy,
+    addDoc
 } from "firebase/firestore";
 
-// Import the configuration and validation flag from the new config file.
+
 import { firebaseConfig, isFirebaseConfigValid } from './config';
 
-// Initialize Firebase only if the config is valid.
+
 const app = isFirebaseConfigValid ? initializeApp(firebaseConfig) : null;
+
 const auth = isFirebaseConfigValid ? getAuth(app) : null;
 const db = isFirebaseConfigValid ? getFirestore(app) : null;
 
-// Export everything from one place for easy access in other components
+
 export { 
     app, 
     auth, 
@@ -41,8 +42,10 @@ export {
     doc,
     setDoc,
     onSnapshot,
-    // ADDED: Export the newly imported functions
     collection,
     getDocs,
-    deleteDoc
+    deleteDoc,
+    query,
+    orderBy,
+    addDoc
 };

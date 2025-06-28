@@ -8,10 +8,10 @@ import { ActionControlPanel } from '../components/ActionControlPanel';
 
 export const CalculatorPage = ({
     team, handleTeamChange, setEditingBuildFor,
-    enemyKey, setEnemyKey, user, gameData,
+    enemyKey, setEnemyKey, user, gameData, isAdmin, // <-- Added isAdmin
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset,
+    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet, // <-- Added onSaveToMastersheet
     rotation, rotationDuration, setRotationDuration,
     mainView, setMainView,
     activeActionTray, setActiveActionTray,
@@ -46,6 +46,9 @@ export const CalculatorPage = ({
                     onSavePreset={onSavePreset} onLoadPreset={onLoadPreset} onDeletePreset={onDeletePreset}
                     onExport={onExport} onImport={onImport} onClearAll={onClearAll}
                     gameData={gameData}
+                    // --- FIX IS HERE: Pass the props down to the Sidebar ---
+                    isAdmin={isAdmin}
+                    onSaveToMastersheet={onSaveToMastersheet}
                 />
             </div>
             <main className="flex-grow bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6">
@@ -61,10 +64,8 @@ export const CalculatorPage = ({
                                 <div className="flex items-center gap-2">
                                     {selectedActionIds.length > 0 ? (<button onClick={() => setShowBulkEdit(true)} className="btn btn-secondary">Bulk Edit ({selectedActionIds.length})</button>) : (<><span className='text-sm text-[var(--color-text-secondary)] mr-2'>Add:</span>
                                     
-                                    {/* --- FIX IS HERE --- */}
                                     {activeTeam.map(c => {
                                         const char = characterData[c];
-                                        // If character data hasn't loaded for this key, or is invalid, skip rendering this button.
                                         if (!char || !char.name) return null; 
 
                                         return (
@@ -78,7 +79,6 @@ export const CalculatorPage = ({
                                             </button>
                                         );
                                     })}
-                                    {/* --- END FIX --- */}
                                     
                                     </>)}
                                 </div>

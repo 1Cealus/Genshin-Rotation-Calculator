@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import React, { useState } from 'react';
 
 const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, usedCharacters, characterData }) => {
@@ -53,6 +52,7 @@ const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, us
     }
 };
 
+
 const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSavePreset, presetName, setPresetName, onImport, onExport }) => {
     return (
         <div className="space-y-3 p-4 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)]">
@@ -71,7 +71,7 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
                 </div>
              </div>
              <div className="relative">
-                <select onChange={(e) => onLoadPreset(savedPresets.find(p => p.id === e.target.value))} className="w-full">
+                <select onChange={(e) => { const preset = savedPresets.find(p => p.id === e.target.value); if (preset) onLoadPreset(preset);}} className="w-full">
                     <option value="" className="bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]">Load a Preset...</option>
                     {savedPresets.map(preset => <option key={preset.id} value={preset.id} className="bg-[var(--color-bg-secondary)] text-white">{preset.name}</option>)}
                 </select>
@@ -101,10 +101,10 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
 
 export const Sidebar = ({ 
     team, handleTeamChange, setEditingBuildFor,
-    enemyKey, setEnemyKey, user, gameData,
+    enemyKey, setEnemyKey, user, gameData, isAdmin,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset,
+    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet
 }) => {
     const [showPresets, setShowPresets] = useState(false);
     const { characterData, enemyData } = gameData;
@@ -160,6 +160,11 @@ export const Sidebar = ({
                         Clear Workspace
                     </button>
                 </div>
+                {isAdmin && (
+                    <button onClick={onSaveToMastersheet} className="btn btn-primary w-full mt-2">
+                        Publish to Mastersheet
+                    </button>
+                )}
             </div>
         </aside>
     );

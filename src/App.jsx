@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously } from './firebase';
+import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously, addDoc } from './firebase';
 import { isFirebaseConfigValid } from './config.js';
+import { useModal } from './context/ModalContext.jsx'; // <-- Import the modal hook
 
 // Component Imports
 import { NavigationSidebar } from './components/NavigationSidebar';
@@ -14,6 +15,7 @@ import { CharacterArchivePage } from './pages/CharacterArchivePage';
 import { WeaponArchivePage } from './pages/WeaponArchivePage';
 import { ArtifactArchivePage } from './pages/ArtifactArchivePage';
 import { EnemyArchivePage } from './pages/EnemyArchivePage';
+import { MastersheetPage } from './pages/MastersheetPage';
 
 
 // Utility and Data Imports
@@ -46,6 +48,7 @@ const createDefaultBuild = (charKey, characterData) => {
 const initialTeam = ['skirk', 'furina', 'mona', 'escoffier'];
 
 export default function App() {
+    const { showModal } = useModal();
     const [user, setUser] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isUserLoading, setIsUserLoading] = useState(true);
@@ -73,7 +76,7 @@ export default function App() {
     
     useEffect(() => {
         if (!isFirebaseConfigValid) {
-            alert("Firebase configuration is missing or invalid. Please check your .env file.");
+            showModal({ title: 'Configuration Error', message: 'Firebase configuration is missing or invalid. Please check your .env file.' });
             setIsGameDataLoading(false);
             return;
         }
@@ -83,7 +86,7 @@ export default function App() {
             setIsGameDataLoading(false);
         }).catch(err => {
             setIsGameDataLoading(false);
-            alert("A critical error occurred while loading game data from Firestore. Please check the console and ensure the data was uploaded correctly.");
+            showModal({ title: 'Data Loading Error', message: 'A critical error occurred while loading game data from Firestore. Please check the console and ensure the data was uploaded correctly.' });
             console.error(err);
         });
 
@@ -184,7 +187,7 @@ export default function App() {
     
     const handleAddFromNotation = (notationString, charKey) => {
         const { actions, errors } = parseNotation(notationString, charKey, gameData.characterData);
-        if (errors.length > 0) alert("Parser Errors:\n" + errors.join("\n"));
+        if (errors.length > 0) showModal({ title: "Parser Errors", message: errors.join("\n") });
         if (actions.length > 0) setRotation(prev => [...prev, ...actions]);
     };
 
@@ -280,13 +283,105 @@ export default function App() {
         dps: analyticsData.totalDps || 0
     }), [analyticsData.totalDamage, analyticsData.totalDps]);
 
-    const handleSavePreset = async () => { if (!presetName) { alert("Please enter a name for the preset."); return; } if (!user) return; setIsSaving(true); const dataToSave = { name: presetName, team, characterBuilds, rotation, enemyKey, rotationDuration }; try { const appId = 'default-app-id'; const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetName); await setDoc(presetDocRef, dataToSave); alert(`Preset "${presetName}" saved successfully!`); } catch (error) { console.error("Save preset error:", error); alert("Failed to save preset. Check Firebase rules."); } finally { setIsSaving(false); } };
+    const handleSavePreset = async () => { 
+        if (!presetName) { showModal({ title: "Save Error", message: "Please enter a name for the preset." }); return; } 
+        if (!user) return; 
+        setIsSaving(true); 
+        const dataToSave = { name: presetName, team, characterBuilds, rotation, enemyKey, rotationDuration }; 
+        try { 
+            const appId = 'default-app-id'; 
+            const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetName); 
+            await setDoc(presetDocRef, dataToSave); 
+            showModal({ title: "Success", message: `Preset "${presetName}" saved successfully!` });
+        } catch (error) { 
+            console.error("Save preset error:", error); 
+            showModal({ title: "Save Error", message: "Failed to save preset. Check Firebase rules." });
+        } finally { 
+            setIsSaving(false); 
+        } 
+    };
+    
+    const handleSaveToMastersheet = async () => {
+        if (!isAdmin) {
+            showModal({ title: "Permission Denied", message: "You do not have permission to perform this action." });
+            return;
+        }
+        if (!presetName) {
+            showModal({ title: "Publish Error", message: "Please enter a name for the mastersheet entry." });
+            return;
+        }
+
+        setIsSaving(true);
+        const dataToSave = {
+            name: presetName,
+            team,
+            characterBuilds,
+            rotation,
+            rotationDuration,
+            enemyKey,
+            totalDamage: rotationSummary.totalDamage,
+            dps: rotationSummary.dps,
+            savedAt: new Date()
+        };
+
+        try {
+            const appId = 'default-app-id';
+            const mastersheetCollectionRef = collection(db, `artifacts/${appId}/public/data/mastersheet`);
+            await addDoc(mastersheetCollectionRef, dataToSave);
+            showModal({ title: "Success", message: `Preset "${presetName}" published to the Mastersheet successfully!` });
+        } catch (error) {
+            console.error("Save to mastersheet error:", error);
+            showModal({ title: "Publish Error", message: "Failed to publish to mastersheet." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleLoadPreset = (preset) => { if (!preset) return; setTeam(preset.team); setCharacterBuilds(preset.characterBuilds); setRotation(preset.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(preset.enemyKey); setRotationDuration(preset.rotationDuration); setPresetName(preset.name); };
-    const handleDeletePreset = async (presetId) => { if (!presetId || !user) return; if (window.confirm(`Are you sure you want to delete the preset "${presetId}"?`)) { try { const appId = 'default-app-id'; const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetId); await deleteDoc(presetDocRef); } catch (error) { console.error("Delete preset error: ", error); alert("Failed to delete preset."); } } };
-    const handleClearAll = () => { if (window.confirm("Are you sure you want to clear the current workspace? This will not delete your saved presets.")) { const newBuilds = {}; initialTeam.forEach(c => { if(c) newBuilds[c] = createDefaultBuild(c, gameData.characterData); }); setTeam(initialTeam); setCharacterBuilds(newBuilds); setRotation([]); setEnemyKey('ruin_guard'); setRotationDuration(20); setPresetName("New Team"); setSelectedActionIds([]); } };
+    
+    const handleDeletePreset = async (presetId) => {
+        if (!presetId || !user) return;
+        const presetToDelete = savedPresets.find(p => p.id === presetId);
+        
+        showModal({
+            title: 'Delete Preset?',
+            message: `Are you sure you want to delete your personal preset "${presetToDelete?.name || presetId}"?`,
+            type: 'confirm',
+            onConfirm: async () => {
+                try {
+                    const appId = 'default-app-id';
+                    const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetId);
+                    await deleteDoc(presetDocRef);
+                } catch (error) {
+                    console.error("Delete preset error: ", error);
+                    showModal({ title: 'Error', message: 'Failed to delete preset.' });
+                }
+            }
+        });
+    };
+
+    const handleClearAll = () => {
+        showModal({
+            title: 'Clear Workspace?',
+            message: 'Are you sure you want to clear the current team and rotation? This will not delete your saved presets.',
+            type: 'confirm',
+            onConfirm: () => {
+                const newBuilds = {};
+                initialTeam.forEach(c => { if(c) newBuilds[c] = createDefaultBuild(c, gameData.characterData); });
+                setTeam(initialTeam);
+                setCharacterBuilds(newBuilds);
+                setRotation([]);
+                setEnemyKey('ruin_guard');
+                setRotationDuration(20);
+                setPresetName("New Team");
+                setSelectedActionIds([]);
+            }
+        });
+    };
+
     const handleExportData = () => { const dataToExport = { team, characterBuilds, rotation, enemyKey, rotationDuration, presetName }; const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataToExport, null, 2))}`; const link = document.createElement("a"); const safePresetName = presetName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); link.href = jsonString; link.download = `${safePresetName || 'genshin-rotation-data'}.json`; link.click(); };
     const handleImportClick = () => { importFileRef.current.click(); };
-    const handleImportData = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const d = JSON.parse(e.target.result); if (d.team && d.characterBuilds && d.rotation) { setTeam(d.team); setCharacterBuilds(d.characterBuilds); setRotation(d.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(d.enemyKey || 'ruin_guard'); setRotationDuration(d.rotationDuration || 20); setPresetName(d.presetName || "Imported Team"); event.target.value = null; } else { alert("Invalid data file format."); } } catch (error) { alert("Error parsing file."); console.error("Import error:", error); } }; reader.readAsText(file); };
+    const handleImportData = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const d = JSON.parse(e.target.result); if (d.team && d.characterBuilds && d.rotation) { setTeam(d.team); setCharacterBuilds(d.characterBuilds); setRotation(d.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(d.enemyKey || 'ruin_guard'); setRotationDuration(d.rotationDuration || 20); setPresetName(d.presetName || "Imported Team"); event.target.value = null; } else { showModal({title: "Import Error", message: "Invalid data file format."}); } } catch (error) { showModal({title: "Import Error", message: "Error parsing file."}); console.error("Import error:", error); } }; reader.readAsText(file); };
     const handleAddSingleAction = (charKey, talentKey) => { if (charKey && talentKey) { setRotation(prev => [...prev, { id: Date.now() + Math.random(), characterKey: charKey, talentKey, config: { reactionType: 'none', activeBuffs: {}, infusion: null }, repeat: 1 }]); } };
     const handleActionRepeatChange = (actionId, newRepeat) => { const repeatCount = Math.max(1, parseInt(newRepeat, 10) || 1); setRotation(r => r.map(a => a.id === actionId ? { ...a, repeat: repeatCount } : a)); };
     const handleDuplicateAction = (actionId) => { const actionIndex = rotation.findIndex(a => a.id === actionId); if (actionIndex > -1) { const actionToDuplicate = rotation[actionIndex]; const newAction = JSON.parse(JSON.stringify(actionToDuplicate)); newAction.id = Date.now() + Math.random(); const newRotation = [...rotation]; newRotation.splice(actionIndex + 1, 0, newAction); setRotation(newRotation); } };
@@ -305,10 +400,11 @@ export default function App() {
     const calculatorPageProps = {
         team, handleTeamChange, setEditingBuildFor,
         enemyKey, setEnemyKey, user, gameData,
-        isSaving,
+        isSaving, isAdmin,
         onExport: handleExportData, onImport: handleImportClick, onClearAll: handleClearAll,
         presetName, setPresetName, savedPresets,
         onSavePreset: handleSavePreset, onLoadPreset: handleLoadPreset, onDeletePreset: handleDeletePreset,
+        onSaveToMastersheet: handleSaveToMastersheet,
         rotation, rotationDuration, setRotationDuration,
         mainView, setMainView,
         activeActionTray, setActiveActionTray,
@@ -348,6 +444,7 @@ export default function App() {
                 {page === 'weapons' && gameData && <WeaponArchivePage gameData={gameData} />}
                 {page === 'artifacts' && gameData && <ArtifactArchivePage gameData={gameData} />}
                 {page === 'enemies' && gameData && <EnemyArchivePage gameData={gameData} />}
+                {page === 'mastersheet' && gameData && <MastersheetPage gameData={gameData} onLoadPreset={handleLoadPreset} setPage={setPage} isAdmin={isAdmin} />}
             </main>
         </div>
     );
