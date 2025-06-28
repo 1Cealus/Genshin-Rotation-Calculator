@@ -220,24 +220,65 @@ export default function App() {
     }, [rotation, characterBuilds, enemyKey, team, gameData]);
 
     const analyticsData = useMemo(() => {
-        if (!gameData) return { characterDps: {}, elementDps: {}, sourceDps: [], totalDamage: 0 };
-        const characterDps = {}, elementDps = {}, sourceDps = [];
-        let totalDamage = 0;
+        if (!gameData) return {};
+        
+        const characterMetrics = {};
+        const elementMetrics = {};
+        const sourceMetrics = [];
+        let grandTotalDamage = 0;
+
         calculationResults.forEach(res => {
             if (!res || !res.charKey || !res.talentKey) return;
+            
             const charName = gameData.characterData[res.charKey]?.name;
             if(!charName) return;
+
             const talentName = gameData.characterData[res.charKey].talents[res.talentKey].name;
             const damageType = res.damage.damageType;
             const actionTotalDamage = (res.damage.avg || 0) * (res.repeat || 1);
-            characterDps[charName] = (characterDps[charName] || 0) + actionTotalDamage;
-            elementDps[damageType] = (elementDps[damageType] || 0) + actionTotalDamage;
-            sourceDps.push({ name: `${charName} - ${talentName} (x${res.repeat})`, value: actionTotalDamage, element: damageType });
-            totalDamage += actionTotalDamage;
+            
+            grandTotalDamage += actionTotalDamage;
+
+            if (!characterMetrics[charName]) characterMetrics[charName] = { total: 0 };
+            if (!elementMetrics[damageType]) elementMetrics[damageType] = { total: 0 };
+
+            characterMetrics[charName].total += actionTotalDamage;
+            elementMetrics[damageType].total += actionTotalDamage;
+            
+            sourceMetrics.push({ 
+                name: `${charName} - ${talentName} (x${res.repeat})`, 
+                total: actionTotalDamage, 
+                element: damageType 
+            });
         });
-        sourceDps.sort((a, b) => b.value - a.value);
-        return { characterDps, elementDps, sourceDps, totalDamage };
-    }, [calculationResults, gameData]);
+
+        const duration = rotationDuration > 0 ? rotationDuration : 1;
+
+        for (const char in characterMetrics) {
+            characterMetrics[char].dps = characterMetrics[char].total / duration;
+        }
+        for (const elem in elementMetrics) {
+            elementMetrics[elem].dps = elementMetrics[elem].total / duration;
+        }
+        sourceMetrics.forEach(source => {
+            source.dps = source.total / duration;
+        });
+
+        sourceMetrics.sort((a, b) => b.total - a.total);
+
+        return { 
+            characterMetrics, 
+            elementMetrics, 
+            sourceMetrics, 
+            totalDamage: grandTotalDamage, 
+            totalDps: grandTotalDamage / duration 
+        };
+    }, [calculationResults, gameData, rotationDuration]);
+    
+    const rotationSummary = useMemo(() => ({ 
+        totalDamage: analyticsData.totalDamage || 0, 
+        dps: analyticsData.totalDps || 0
+    }), [analyticsData.totalDamage, analyticsData.totalDps]);
 
     const handleSavePreset = async () => { if (!presetName) { alert("Please enter a name for the preset."); return; } if (!user) return; setIsSaving(true); const dataToSave = { name: presetName, team, characterBuilds, rotation, enemyKey, rotationDuration }; try { const appId = 'default-app-id'; const presetDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/presets`, presetName); await setDoc(presetDocRef, dataToSave); alert(`Preset "${presetName}" saved successfully!`); } catch (error) { console.error("Save preset error:", error); alert("Failed to save preset. Check Firebase rules."); } finally { setIsSaving(false); } };
     const handleLoadPreset = (preset) => { if (!preset) return; setTeam(preset.team); setCharacterBuilds(preset.characterBuilds); setRotation(preset.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(preset.enemyKey); setRotationDuration(preset.rotationDuration); setPresetName(preset.name); };
@@ -255,7 +296,6 @@ export default function App() {
     const handleUpdateAction = (id, updatedAction) => setRotation(r => r.map(a => a.id === id ? updatedAction : a));
     const handleRemoveAction = (id) => setRotation(r => r.filter(a => a.id !== id));
     
-    const rotationSummary = useMemo(() => ({ totalDamage: analyticsData.totalDamage, dps: analyticsData.totalDamage / (rotationDuration || 1) }), [analyticsData.totalDamage, rotationDuration]);
     const activeTeam = useMemo(() => team.filter(c => c), [team]);
     
     if (isUserLoading || isGameDataLoading) {

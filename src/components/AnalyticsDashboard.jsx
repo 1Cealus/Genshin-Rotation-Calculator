@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const ELEMENT_COLORS = {
@@ -15,11 +15,17 @@ const ELEMENT_COLORS = {
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
-    const name = payload[0].payload.name || label;
+    const data = payload[0].payload;
+    const name = data.name || label;
+    // Access the full data from the payload to show both metrics
+    const totalDamage = data.total;
+    const dps = data.dps;
+
     return (
-      <div className="bg-gray-800/80 backdrop-blur-sm p-3 border border-gray-600 rounded-lg">
+      <div className="bg-gray-800/80 backdrop-blur-sm p-3 border border-gray-600 rounded-lg text-sm">
         <p className="label text-white font-bold capitalize">{`${name}`}</p>
-        <p className="intro text-cyan-400">{`Damage : ${payload[0].value.toLocaleString(undefined, {maximumFractionDigits: 0})}`}</p>
+        <p className="text-gray-300">Total Damage: <span className="text-cyan-400 font-mono">{totalDamage.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></p>
+        <p className="text-gray-300">DPS: <span className="text-cyan-400 font-mono">{dps.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></p>
       </div>
     );
   }
@@ -27,10 +33,21 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const AnalyticsDashboard = ({ analyticsData }) => {
-    const { characterDps, elementDps, sourceDps } = analyticsData;
+    const { 
+        characterMetrics = {}, 
+        elementMetrics = {}, 
+        sourceMetrics = [] 
+    } = analyticsData || {};
 
-    const characterPieData = Object.entries(characterDps).map(([name, value]) => ({ name, value }));
-    const elementPieData = Object.entries(elementDps).map(([name, value]) => ({ name, value }));
+    // Chart data is now permanently calculated based on DPS
+    const [characterPieData, elementPieData, sourceBarData] = useMemo(() => {
+        const charData = Object.entries(characterMetrics).map(([name, values]) => ({ name, value: values.dps, ...values }));
+        const elemData = Object.entries(elementMetrics).map(([name, values]) => ({ name, value: values.dps, ...values }));
+        // Sort the source breakdown by DPS as well
+        const srcData = sourceMetrics.map(source => ({ ...source, value: source.dps })).sort((a, b) => b.dps - a.dps);
+        
+        return [charData, elemData, srcData];
+    }, [characterMetrics, elementMetrics, sourceMetrics]);
     
     const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
         if (percent < 0.05) return null;
@@ -48,6 +65,7 @@ const AnalyticsDashboard = ({ analyticsData }) => {
 
     return (
         <div className="space-y-6">
+            {/* The View Metric toggle has been removed */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-800/60 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-white mb-4">Character DPS Distribution</h3>
@@ -77,10 +95,10 @@ const AnalyticsDashboard = ({ analyticsData }) => {
             </div>
 
             <div className="bg-gray-800/60 p-4 rounded-lg">
-                <h3 className="text-lg font-bold text-white mb-4">Character DPS</h3>
+                <h3 className="text-lg font-bold text-white mb-4">Damage by Character (DPS)</h3>
                 <ResponsiveContainer width="100%" height={Math.max(120, characterPieData.length * 60)}>
                     <BarChart data={characterPieData} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
-                        <XAxis type="number" stroke="#9ca3af" />
+                        <XAxis type="number" stroke="#9ca3af" domain={[0, 'dataMax']} allowDecimals={false} />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={100} />
                         <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(107, 114, 128, 0.2)'}}/>
                         <Bar dataKey="value" barSize={30}>
@@ -91,14 +109,14 @@ const AnalyticsDashboard = ({ analyticsData }) => {
             </div>
 
             <div className="bg-gray-800/60 p-4 rounded-lg">
-                <h3 className="text-lg font-bold text-white mb-4">Damage Source Breakdown</h3>
-                <ResponsiveContainer width="100%" height={Math.max(200, sourceDps.length * 50)}>
-                    <BarChart data={sourceDps} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
-                        <XAxis type="number" stroke="#9ca3af" />
+                <h3 className="text-lg font-bold text-white mb-4">Damage Source Breakdown (DPS)</h3>
+                <ResponsiveContainer width="100%" height={Math.max(200, sourceBarData.length * 50)}>
+                    <BarChart data={sourceBarData} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
+                        <XAxis type="number" stroke="#9ca3af" domain={[0, 'dataMax']} allowDecimals={false} />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={200} />
                         <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(107, 114, 128, 0.2)'}}/>
                         <Bar dataKey="value" barSize={25}>
-                             {sourceDps.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.element.toLowerCase()] || ELEMENT_COLORS.default} />)}
+                             {sourceBarData.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.element.toLowerCase()] || ELEMENT_COLORS.default} />)}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

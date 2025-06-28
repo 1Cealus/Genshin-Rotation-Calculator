@@ -15,43 +15,20 @@ export function calculateTotalStats(state, gameData) {
     const bonuses = {};
     const addBonus = (stat, value) => { bonuses[stat] = (bonuses[stat] || 0) + value; };
 
-    // 1. Base Stats (Character + Weapon + Ascension)
-    if (character.ascension_stat && character.ascension_value) {
-        addBonus(character.ascension_stat, character.ascension_value);
-    }
-    for (const key in weapon.stats) {
-        addBonus(key, weapon.stats[key]);
-    }
+    // Sections 1, 2, 3 are unchanged
+    if (character.ascension_stat && character.ascension_value) { addBonus(character.ascension_stat, character.ascension_value); }
+    for (const key in weapon.stats) { addBonus(key, weapon.stats[key]); }
     const weaponRefinement = weapon.refinements[characterBuild.weapon.refinement - 1] || {};
-    
-    // --- FIX IS HERE ---
-    // This now correctly loops through all stats in the refinement object (e.g., skill_dmg_bonus)
-    // instead of incorrectly looking for a nested "effects" object.
-    for (const stat in weaponRefinement) {
-        if (typeof weaponRefinement[stat] === 'number') {
-            addBonus(stat, weaponRefinement[stat]);
-        }
-    }
-
-    // 2. Artifact Stats (Main + Sub)
+    for (const stat in weaponRefinement) { if (typeof weaponRefinement[stat] === 'number') { addBonus(stat, weaponRefinement[stat]); } }
     Object.values(characterBuild.artifacts).forEach(piece => {
         if (piece) {
-            if (piece.mainStat && mainStatValues[piece.mainStat]) {
-                addBonus(piece.mainStat, mainStatValues[piece.mainStat].value);
-            }
-            if (piece.substats) {
-                for (const key in piece.substats) addBonus(key, piece.substats[key]);
-            }
+            if (piece.mainStat && mainStatValues[piece.mainStat]) { addBonus(piece.mainStat, mainStatValues[piece.mainStat].value); }
+            if (piece.substats) { for (const key in piece.substats) addBonus(key, piece.substats[key]); }
         }
     });
-
-    // 3. Artifact Set Bonuses (2pc only, 4pc are active buffs)
     const { set_2pc, set_4pc } = characterBuild.artifacts;
-    if (set_4pc && set_4pc !== 'no_set' && buffData[`${set_4pc}_2pc`]?.effects) {
-        for (const key in buffData[`${set_4pc}_2pc`].effects) addBonus(key, buffData[`${set_4pc}_2pc`].effects[key]);
-    } else if (set_2pc && set_2pc !== 'no_set' && buffData[`${set_2pc}_2pc`]?.effects) {
-        for (const key in buffData[`${set_2pc}_2pc`].effects) addBonus(key, buffData[`${set_2pc}_2pc`].effects[key]);
-    }
+    if (set_4pc && set_4pc !== 'no_set' && buffData[`${set_4pc}_2pc`]?.effects) { for (const key in buffData[`${set_4pc}_2pc`].effects) addBonus(key, buffData[`${set_4pc}_2pc`].effects[key]);
+    } else if (set_2pc && set_2pc !== 'no_set' && buffData[`${set_2pc}_2pc`]?.effects) { for (const key in buffData[`${set_2pc}_2pc`].effects) addBonus(key, buffData[`${set_2pc}_2pc`].effects[key]); }
 
     // 4. Team-wide PASSIVE constellation buffs
     if (team && characterBuilds) {
@@ -61,14 +38,8 @@ export function calculateTotalStats(state, gameData) {
             if (!teammateBuild) return;
             
             Object.values(buffData).forEach(buffDef => {
-                if (buffDef.source_type === 'constellation' && 
-                    buffDef.is_passive && 
-                    buffDef.source_character === teammateKey && 
-                    teammateBuild.constellation >= buffDef.constellation) {
-                    
-                    if (buffDef.effects) {
-                         for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]);
-                    }
+                if (buffDef.source_type === 'constellation' && buffDef.is_passive && buffDef.source_character === teammateKey && teammateBuild.constellation >= buffDef.constellation) {
+                    if (buffDef.effects) { for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]); }
                 }
             });
         });
@@ -84,22 +55,34 @@ export function calculateTotalStats(state, gameData) {
             if (buffDef.effects) for (const stat in buffDef.effects) addBonus(stat, buffDef.effects[stat]);
 
             if (buffDef.stackable && !buffDef.dynamic_effects) {
-                // For stackable weapon passives like Serpent Spine, get the per-stack value from the refinement data
                 const effectPerStack = buffDef.stackable.is_weapon_passive ? weaponRefinement : (buffDef.stackable.effects || {});
                 for (const stat in effectPerStack) {
                     if (typeof effectPerStack[stat] === 'number') addBonus(stat, effectPerStack[stat] * buffState.stacks);
                 }
             }
 
-            if (buffDef.dynamic_effects) {
+            if (buffDef.dynamic_effects && buffDef.dynamic_effects.type !== 'flat_damage_bonus') {
                 const dynamic = buffDef.dynamic_effects;
                 const holderBuild = characterBuilds[buffDef.source_character] || characterBuilds[team.find(c => characterBuilds[c]?.weapon.key === buffDef.source_weapon)];
                 let maxStacks = buffDef.stackable?.max_stacks || 1;
                 const currentStacks = Math.min(buffState.stacks || 1, maxStacks);
 
-                if (!holderBuild && (dynamic.type !== 'ramping_stacking_stat')) return;
+                if (!holderBuild && !['ramping_stacking_stat', 'stat_conversion', 'stack_based_lookup'].includes(dynamic.type)) return;
 
                 switch(dynamic.type) {
+                    // --- NEW CASE TO HANDLE THIS TYPE OF BUFF ---
+                    case 'stack_based_lookup': {
+                        if (!dynamic.values || !dynamic.stat) break;
+                        const bonusValue = dynamic.values[currentStacks - 1] || 0; // -1 because stacks are 1-based
+                        
+                        if (Array.isArray(dynamic.stat)) {
+                            dynamic.stat.forEach(s => addBonus(s, bonusValue));
+                        } else {
+                            addBonus(dynamic.stat, bonusValue);
+                        }
+                        break;
+                    }
+                    case 'stat_conversion': break; // Placeholder for now
                     case 'ramping_stacking_stat': {
                         const baseValue = dynamic.base_value || 0;
                         const valuePerStack = dynamic.value_per_stack || 0;
@@ -166,6 +149,25 @@ export function calculateTotalStats(state, gameData) {
         }
     }
     
+    if (activeBuffs) {
+        Object.entries(activeBuffs).forEach(([buffKey, buffState]) => {
+            if (!buffState.active) return;
+            const buffDef = buffData[buffKey];
+            if (!buffDef || !buffDef.dynamic_effects) return;
+            const dynamic = buffDef.dynamic_effects;
+            if (dynamic.type === 'stat_conversion') {
+                const fromStatValue = finalStats[dynamic.from_stat] || 0;
+                let ratio = dynamic.ratio || 0;
+                if (dynamic.talent_level_based) {
+                    const holderBuild = characterBuilds[buffDef.source_character];
+                    const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                    ratio = dynamic.values[talentLevel - 1] || 0;
+                }
+                finalStats[dynamic.to_stat] = (finalStats[dynamic.to_stat] || 0) + (fromStatValue * ratio);
+            }
+        });
+    }
+
     finalStats.crit_rate = (finalStats.crit_rate || 0) + 0.05;
     finalStats.crit_dmg = (finalStats.crit_dmg || 0) + 0.50;
     finalStats.er = (finalStats.er || 0) + 1.0;
