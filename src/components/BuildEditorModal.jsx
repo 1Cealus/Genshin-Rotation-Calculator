@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { calculateTotalStats } from '../logic/stat_calculator.js';
 
-// --- NEW COMPONENT TO FIX THE SCROLL JUMP BUG ---
+
 const TalentInput = ({ tKey, value, onUpdate }) => {
-    // This component now manages its own temporary state while you type.
+
     const [localLevel, setLocalLevel] = useState(value || 1);
 
-    // This ensures the local state updates if the prop changes from outside
+
     useEffect(() => {
         setLocalLevel(value || 1);
     }, [value]);
@@ -15,13 +15,13 @@ const TalentInput = ({ tKey, value, onUpdate }) => {
         setLocalLevel(e.target.value);
     };
 
-    // The expensive update to the main app state only happens ONCE, when you click away.
+
     const handleBlur = () => {
         const newLevel = Math.max(1, Math.min(15, parseInt(localLevel, 10) || 1));
         if (newLevel !== value) {
             onUpdate(newLevel);
         }
-        // This makes sure the displayed number is correctly formatted (e.g., if you typed "0" it becomes "1")
+
         setLocalLevel(newLevel); 
     };
 

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// REMOVED: Imports for Google Auth are no longer needed.
 import { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from '../firebase';
 
 export const LoginModal = ({ onClose }) => {
@@ -27,7 +26,6 @@ export const LoginModal = ({ onClose }) => {
     
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            {/* Using a simpler, single-column layout now that the side image isn't as necessary */}
             <div className="w-full max-w-sm bg-[var(--color-bg-secondary)] rounded-xl shadow-2xl border border-[var(--color-border-primary)] p-8 space-y-6" onClick={(e) => e.stopPropagation()}>
                 <div>
                     <h1 className="text-3xl font-bold text-center text-white">Account</h1>
@@ -39,7 +37,6 @@ export const LoginModal = ({ onClose }) => {
                 {error && <p className="text-red-400 bg-red-900/50 p-3 rounded-md text-sm text-center">{error}</p>}
 
                 <div className="space-y-4">
-                    {/* The input fields will now be correctly styled by the updated index.css */}
                     <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
                     <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
                 </div>

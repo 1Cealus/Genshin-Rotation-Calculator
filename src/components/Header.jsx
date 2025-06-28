@@ -1,11 +1,8 @@
 import React from 'react';
 
-// The NavButton component is now simplified.
-// It uses the `.nav-btn` base class from index.css and then toggles the active/inactive classes.
 const NavButton = ({ onClick, pageName, currentPage }) => {
     const isActive = pageName === currentPage;
     
-    // Classes for active and inactive states are now simpler.
     const activeClasses = "text-white border-[var(--color-accent-primary)]";
     const inactiveClasses = "text-[var(--color-text-secondary)] border-transparent hover:text-white";
 
@@ -25,7 +22,6 @@ export const Header = ({ user, isAdmin, page, setPage, onLoginClick, onSignOut }
                         GenshinCalc
                     </h1>
                     <div className="hidden md:flex items-center gap-2">
-                        {/* Using the updated NavButton component */}
                         <NavButton onClick={() => setPage('home')} pageName="home" currentPage={page} />
                         <NavButton onClick={() => setPage('calculator')} pageName="calculator" currentPage={page} />
                         {isAdmin && <NavButton onClick={() => setPage('admin')} pageName="admin" currentPage={page} />}

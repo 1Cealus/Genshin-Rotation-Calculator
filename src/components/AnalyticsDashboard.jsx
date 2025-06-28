@@ -65,7 +65,6 @@ const AnalyticsDashboard = ({ analyticsData }) => {
 
     return (
         <div className="space-y-6">
-            {/* The View Metric toggle has been removed */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-800/60 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-white mb-4">Character DPS Distribution</h3>

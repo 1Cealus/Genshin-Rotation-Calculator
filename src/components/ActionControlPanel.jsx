@@ -21,7 +21,6 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             
             if (!isAvailable) return false;
 
-            // --- NEW LOGIC ---
             // Now, filter based on whether it's team-wide or self-only
             if (buff.teamwide === false) { // This is a self-only buff
                 const actionCharacterBuild = characterBuilds[action.characterKey];

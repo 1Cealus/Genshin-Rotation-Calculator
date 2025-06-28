@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
-// BulkBuffControl component remains the same...
 const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) => {
     const [status, setStatus] = useState('off');
     const [stacks, setStacks] = useState(1);

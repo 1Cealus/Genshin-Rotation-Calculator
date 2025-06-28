@@ -12,7 +12,7 @@ export const AdminPage = ({ newsItems }) => {
     const handleAddNews = async (e) => {
         e.preventDefault();
         setError('');
-        if (password !== 'Speedy656') { // IMPORTANT: Change this password
+        if (password !== 'Admin123') { 
             setError('Incorrect admin password.');
             return;
         }
@@ -20,7 +20,7 @@ export const AdminPage = ({ newsItems }) => {
         try {
             await addDoc(collection(db, 'news'), {
                 title,
-                content: content.replace(/\n/g, '<br />'), // Allow line breaks
+                content: content.replace(/\n/g, '<br />'), 
                 date: Timestamp.now()
             });
             setTitle('');

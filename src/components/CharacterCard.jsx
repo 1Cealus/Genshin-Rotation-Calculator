@@ -13,12 +13,10 @@ const elementBorders = {
     physical: 'border-gray-400'
 };
 
-// ADDED the onClick prop
 export const CharacterCard = ({ charInfo, onClick }) => {
     const borderColor = elementBorders[charInfo.element] || 'border-gray-600';
 
     return (
-        // ADDED onClick to the main div
         <div onClick={onClick} className="bg-[var(--color-bg-secondary)] rounded-lg overflow-hidden shadow-lg border-2 border-transparent hover:border-[var(--color-accent-primary)] transition-all duration-200 cursor-pointer group">
             <div className={`relative p-2 border-b-4 ${borderColor}`}>
                 <img 

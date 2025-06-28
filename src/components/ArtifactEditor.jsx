@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { artifactSets } from '../data/artifact_sets.js';
 import { artifactMainStats } from '../data/artifact_stats.js';
 
-// A single row for managing one artifact slot.
+
 const ArtifactSlot = ({ slotName, piece, onChange }) => {
     const handleSetChange = (e) => {
         onChange(slotName, { ...piece, set: e.target.value });
@@ -26,10 +26,10 @@ const ArtifactSlot = ({ slotName, piece, onChange }) => {
     );
 };
 
-// The main panel for managing all 5 artifact slots and displaying set bonuses.
+
 export const ArtifactEditor = ({ artifacts, onUpdate }) => {
     
-    // Calculate which set bonuses are active based on the equipped pieces.
+
     const activeSetBonuses = useMemo(() => {
         const counts = {};
         Object.values(artifacts).forEach(piece => {
