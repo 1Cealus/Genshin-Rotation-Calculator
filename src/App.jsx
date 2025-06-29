@@ -233,8 +233,11 @@ export default function App() {
         calculationResults.forEach(res => {
             if (!res || !res.charKey || !res.talentKey) return;
             
-            const charName = gameData.characterData[res.charKey]?.name;
-            if(!charName) return;
+            const charInfo = gameData.characterData[res.charKey];
+            if(!charInfo || !charInfo.name) return;
+
+            const charName = charInfo.name;
+            const charElement = charInfo.element; // <-- Get character element
 
             const talentName = gameData.characterData[res.charKey].talents[res.talentKey].name;
             const damageType = res.damage.damageType;
@@ -242,8 +245,14 @@ export default function App() {
             
             grandTotalDamage += actionTotalDamage;
 
-            if (!characterMetrics[charName]) characterMetrics[charName] = { total: 0 };
-            if (!elementMetrics[damageType]) elementMetrics[damageType] = { total: 0 };
+            // --- MODIFICATION HERE ---
+            // Ensure the characterMetrics object includes the element
+            if (!characterMetrics[charName]) {
+                characterMetrics[charName] = { total: 0, element: charElement };
+            }
+            if (!elementMetrics[damageType]) {
+                elementMetrics[damageType] = { total: 0 };
+            }
 
             characterMetrics[charName].total += actionTotalDamage;
             elementMetrics[damageType].total += actionTotalDamage;

@@ -1,16 +1,18 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const ELEMENT_COLORS = {
-  pyro: '#ff7755',
-  hydro: '#5599ff',
-  dendro: '#99ff55',
-  electro: '#cc77ff',
-  anemo: '#77ffcc',
-  cryo: '#77ccff',
-  geo: '#ffcc55',
-  physical: '#dddddd',
-  default: '#8884d8'
+// --- MODIFICATION HERE ---
+// Define a palette with multiple shades to handle characters with the same element.
+const ELEMENT_COLOR_PALETTE = {
+  pyro: ['#ff7755', '#e65c40', '#ff9980'],
+  hydro: ['#5599ff', '#3377dd', '#80b3ff'],
+  dendro: ['#99ff55', '#7fde40', '#b3ff80'],
+  electro: ['#cc77ff', '#b35ee6', '#e6a3ff'],
+  anemo: ['#77ffcc', '#5ee6b3', '#a3ffe6'],
+  cryo: ['#77ccff', '#5eb3e6', '#a3d9ff'],
+  geo: ['#ffcc55', '#e6b340', '#ffe680'],
+  physical: ['#dddddd', '#bbbbbb', '#f0f0f0'],
+  default: ['#8884d8', '#716db4', '#a19edf']
 };
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -39,12 +41,31 @@ const AnalyticsDashboard = ({ analyticsData }) => {
         sourceMetrics = [] 
     } = analyticsData || {};
 
-    // Chart data is now permanently calculated based on DPS
+    // --- MODIFICATION HERE ---
+    // This hook now processes the character metrics to assign a unique color
+    // to each character based on their element.
     const [characterPieData, elementPieData, sourceBarData] = useMemo(() => {
-        const charData = Object.entries(characterMetrics).map(([name, values]) => ({ name, value: values.dps, ...values }));
-        const elemData = Object.entries(elementMetrics).map(([name, values]) => ({ name, value: values.dps, ...values }));
-        // Sort the source breakdown by DPS as well
-        const srcData = sourceMetrics.map(source => ({ ...source, value: source.dps })).sort((a, b) => b.dps - a.dps);
+        const elementCounts = {}; // Track usage of each element to pick a different shade
+
+        const charData = Object.entries(characterMetrics).map(([name, values]) => {
+            const element = values.element || 'default';
+            const count = elementCounts[element] || 0;
+            const palette = ELEMENT_COLOR_PALETTE[element.toLowerCase()] || ELEMENT_COLOR_PALETTE.default;
+            const color = palette[count % palette.length]; // Assign a unique shade
+            elementCounts[element] = count + 1; // Increment for the next character of the same element
+            
+            return { name, value: values.dps, ...values, color };
+        });
+
+        const elemData = Object.entries(elementMetrics).map(([name, values]) => {
+            const palette = ELEMENT_COLOR_PALETTE[name.toLowerCase()] || ELEMENT_COLOR_PALETTE.default;
+            return { name, value: values.dps, ...values, color: palette[0] };
+        });
+        
+        const srcData = sourceMetrics.map(source => {
+            const palette = ELEMENT_COLOR_PALETTE[source.element.toLowerCase()] || ELEMENT_COLOR_PALETTE.default;
+            return { ...source, value: source.dps, color: palette[0] };
+        }).sort((a, b) => b.dps - a.dps);
         
         return [charData, elemData, srcData];
     }, [characterMetrics, elementMetrics, sourceMetrics]);
@@ -70,8 +91,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                     <h3 className="text-lg font-bold text-white mb-4">Character DPS Distribution</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
+                            {/* Use the new pre-calculated color */}
                             <Pie data={characterPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
-                                {characterPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.name.toLowerCase()] || ELEMENT_COLORS.default} />)}
+                                {characterPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                             <Tooltip content={<CustomTooltip />} />
                             <Legend formatter={(value) => <span className="text-gray-300 capitalize">{value}</span>} />
@@ -83,8 +105,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                     <h3 className="text-lg font-bold text-white mb-4">Element DPS Distribution</h3>
                      <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
+                             {/* Use the new pre-calculated color */}
                             <Pie data={elementPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
-                                {elementPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.name.toLowerCase()] || ELEMENT_COLORS.default} />)}
+                                {elementPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                              <Tooltip content={<CustomTooltip />} />
                              <Legend formatter={(value) => <span className="text-gray-300 capitalize">{value}</span>} />
@@ -100,8 +123,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                         <XAxis type="number" stroke="#9ca3af" domain={[0, 'dataMax']} allowDecimals={false} />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={100} />
                         <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(107, 114, 128, 0.2)'}}/>
+                        {/* Use the new pre-calculated color */}
                         <Bar dataKey="value" barSize={30}>
-                             {characterPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.name.toLowerCase()] || ELEMENT_COLORS.default} />)}
+                             {characterPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>
@@ -114,8 +138,9 @@ const AnalyticsDashboard = ({ analyticsData }) => {
                         <XAxis type="number" stroke="#9ca3af" domain={[0, 'dataMax']} allowDecimals={false} />
                         <YAxis type="category" dataKey="name" stroke="#9ca3af" width={200} />
                         <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(107, 114, 128, 0.2)'}}/>
+                         {/* Use the new pre-calculated color */}
                         <Bar dataKey="value" barSize={25}>
-                             {sourceBarData.map((entry, index) => <Cell key={`cell-${index}`} fill={ELEMENT_COLORS[entry.element.toLowerCase()] || ELEMENT_COLORS.default} />)}
+                             {sourceBarData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>

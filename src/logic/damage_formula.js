@@ -48,13 +48,30 @@ export function calculateFinalDamage(state, gameData) {
         Object.entries(activeBuffs).forEach(([buffKey, buffState]) => {
             if (!buffState.active) return;
             const buffDef = buffData[buffKey];
-            if (buffDef && typeof buffDef.flat_damage_calculation === 'function') {
-                const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory;
-                const appliesToTalent = !buffDef.applies_to_talents || buffDef.applies_to_talents.includes(talentKey);
-                const appliesToType = !buffDef.applies_to_talent_type_bonus || effectiveTalentType === buffDef.applies_to_talent_type_bonus;
-                if (appliesToTalent && appliesToType) {
-                    totalFlatDamageBonus += buffDef.flat_damage_calculation(totalStats, config, characterBuild, buffState);
+            if (!buffDef?.dynamic_effects || buffDef.dynamic_effects.type !== 'flat_damage_bonus') return;
+
+            const dynamic = buffDef.dynamic_effects;
+            const { characterBuilds } = state;
+
+            // Check if the buff applies to this specific talent hit
+            const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory;
+            const appliesToTalent = !dynamic.applies_to_talents || dynamic.applies_to_talents.includes(talentKey);
+            const appliesToType = !dynamic.applies_to_talent_type_bonus || effectiveTalentType === dynamic.applies_to_talent_type_bonus;
+            
+            if (appliesToTalent && appliesToType) {
+                const scalingStatValue = totalStats[dynamic.scaling_stat] || 0;
+                let finalMultiplier = dynamic.multiplier;
+
+                // Handle talent-level based multipliers for flat damage (e.g., Shenhe's Quills)
+                if (dynamic.talent_level_based && dynamic.talent && dynamic.values) {
+                    const holderBuild = characterBuilds[buffDef.source_character];
+                    if (holderBuild) {
+                        const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                        finalMultiplier = dynamic.values[talentLevel - 1] || 0;
+                    }
                 }
+                
+                totalFlatDamageBonus += scalingStatValue * finalMultiplier;
             }
         });
     }
@@ -62,7 +79,7 @@ export function calculateFinalDamage(state, gameData) {
     const damageType = state.infusion || talent.element || character.element;
     
     let additiveBaseDamage = 0;
-    const levelMultiplier = 1446.85;
+    const levelMultiplier = 1446.85; // Level 90
     if (state.reactionType === 'aggravate') {
         additiveBaseDamage = 1.15 * levelMultiplier * (1 + (5 * totalStats.em) / (1200 + totalStats.em) + (totalStats.reaction_bonus || 0));
     } else if (state.reactionType === 'spread') {
