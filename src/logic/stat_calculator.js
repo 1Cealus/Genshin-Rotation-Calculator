@@ -7,7 +7,7 @@ const defaultFinalStats = {
 
 export function calculateTotalStats(state, gameData) {
     const { character, weapon, characterBuild, team, characterBuilds, activeBuffs } = state;
-    const { buffData, mainStatValues, characterData } = gameData;
+    const { buffData, mainStatValues, characterData, weaponData } = gameData;
     
     if (!character || !weapon || !characterBuild) { return defaultFinalStats; }
     
@@ -70,11 +70,35 @@ export function calculateTotalStats(state, gameData) {
                 if (!holderBuild && !['ramping_stacking_stat', 'stat_conversion', 'stack_based_lookup'].includes(dynamic.type)) return;
 
                 switch(dynamic.type) {
-                    // --- NEW CASE TO HANDLE THIS TYPE OF BUFF ---
+                    // --- NEW LOGIC FOR BENNETT'S BUFF ---
+                    case 'base_stat_scaling_buff': {
+                        if (!holderBuild || !dynamic.scaling_stat || !dynamic.to_stat) break;
+
+                        const holderInfo = characterData[buffDef.source_character];
+                        const holderWeapon = weaponData[holderBuild.weapon.key];
+                        if (!holderInfo || !holderWeapon) break;
+                        
+                        // Currently only supports base_atk, but can be expanded
+                        let providerBaseStatValue = 0;
+                        if (dynamic.scaling_stat === 'base_atk') {
+                           providerBaseStatValue = holderInfo.base_atk + holderWeapon.base_atk;
+                        }
+                        
+                        let ratio = 0;
+                        if (dynamic.ratio) { // For flat ratio buffs like C1
+                            ratio = dynamic.ratio;
+                        } else if (dynamic.talent && dynamic.values) { // For talent-scaling ratios
+                            const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                            ratio = dynamic.values[talentLevel - 1] || 0;
+                        }
+
+                        const bonus = providerBaseStatValue * ratio;
+                        addBonus(dynamic.to_stat, bonus);
+                        break;
+                    }
                     case 'stack_based_lookup': {
                         if (!dynamic.values || !dynamic.stat) break;
-                        const bonusValue = dynamic.values[currentStacks - 1] || 0; // -1 because stacks are 1-based
-                        
+                        const bonusValue = dynamic.values[currentStacks - 1] || 0;
                         if (Array.isArray(dynamic.stat)) {
                             dynamic.stat.forEach(s => addBonus(s, bonusValue));
                         } else {
@@ -82,7 +106,7 @@ export function calculateTotalStats(state, gameData) {
                         }
                         break;
                     }
-                    case 'stat_conversion': break; // Placeholder for now
+                    case 'stat_conversion': break;
                     case 'ramping_stacking_stat': {
                         const baseValue = dynamic.base_value || 0;
                         const valuePerStack = dynamic.value_per_stack || 0;
