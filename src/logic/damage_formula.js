@@ -15,7 +15,8 @@ export function calculateFinalDamage(state, gameData) {
         const sourceBuff = activeBuffs[bonusInfo.buff_to_check];
 
         if (sourceBuff?.active && sourceBuff.stacks > 0) {
-            // The talent that determines the scaling ratio (e.g., Mavuika's Burst talent)
+            const { characterBuilds } = state; 
+            
             const ratioTalentHolder = characterBuilds[bonusInfo.source_character] || characterBuild;
             const ratioTalentLevel = ratioTalentHolder.talentLevels?.[bonusInfo.scaling_talent] || 1;
             const ratioPerStack = bonusInfo.values[ratioTalentLevel - 1] || 0;
