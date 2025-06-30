@@ -10,6 +10,21 @@ export function calculateFinalDamage(state, gameData) {
     const talentLevel = characterBuild.talentLevels?.[talentCategory] || 1;
     let baseMultiplier = talent.multipliers ? talent.multipliers[talentLevel - 1] : 0;
 
+    if (talent.additive_mv_bonus && activeBuffs) {
+        const bonusInfo = talent.additive_mv_bonus;
+        const sourceBuff = activeBuffs[bonusInfo.buff_to_check];
+
+        if (sourceBuff?.active && sourceBuff.stacks > 0) {
+            // The talent that determines the scaling ratio (e.g., Mavuika's Burst talent)
+            const ratioTalentHolder = characterBuilds[bonusInfo.source_character] || characterBuild;
+            const ratioTalentLevel = ratioTalentHolder.talentLevels?.[bonusInfo.scaling_talent] || 1;
+            const ratioPerStack = bonusInfo.values[ratioTalentLevel - 1] || 0;
+            
+            const bonusMultiplier = sourceBuff.stacks * ratioPerStack;
+            baseMultiplier += bonusMultiplier;
+        }
+    }
+
     if (talent.additive_mv_bonus_per_point) {
         const bonusInfo = talent.additive_mv_bonus_per_point;
         const subtletyPoints = config?.serpent_subtlety_consumed || 0;
@@ -53,7 +68,6 @@ export function calculateFinalDamage(state, gameData) {
             const dynamic = buffDef.dynamic_effects;
             const { characterBuilds } = state;
 
-            // Check if the buff applies to this specific talent hit
             const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory;
             const appliesToTalent = !dynamic.applies_to_talents || dynamic.applies_to_talents.includes(talentKey);
             const appliesToType = !dynamic.applies_to_talent_type_bonus || effectiveTalentType === dynamic.applies_to_talent_type_bonus;
@@ -62,7 +76,6 @@ export function calculateFinalDamage(state, gameData) {
                 const scalingStatValue = totalStats[dynamic.scaling_stat] || 0;
                 let finalMultiplier = dynamic.multiplier;
 
-                // Handle talent-level based multipliers for flat damage (e.g., Shenhe's Quills)
                 if (dynamic.talent_level_based && dynamic.talent && dynamic.values) {
                     const holderBuild = characterBuilds[buffDef.source_character];
                     if (holderBuild) {
@@ -79,7 +92,7 @@ export function calculateFinalDamage(state, gameData) {
     const damageType = state.infusion || talent.element || character.element;
     
     let additiveBaseDamage = 0;
-    const levelMultiplier = 1446.85; // Level 90
+    const levelMultiplier = 1446.85;
     if (state.reactionType === 'aggravate') {
         additiveBaseDamage = 1.15 * levelMultiplier * (1 + (5 * totalStats.em) / (1200 + totalStats.em) + (totalStats.reaction_bonus || 0));
     } else if (state.reactionType === 'spread') {
