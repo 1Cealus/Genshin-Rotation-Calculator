@@ -105,11 +105,14 @@ export function calculateFinalDamage(state, gameData) {
     
     const elementalDmgBonus = totalStats[`${damageType}_dmg_bonus`] || 0;
     
+    // MODIFIED: This section now correctly checks for all specific attack types
     const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory; 
     let talentTypeDmgBonus = 0;
     if (effectiveTalentType === 'na') talentTypeDmgBonus = totalStats.normal_attack_dmg_bonus || 0;
-    else if (effectiveTalentType === 'burst') talentTypeDmgBonus = totalStats.burst_dmg_bonus || 0;
+    else if (effectiveTalentType === 'ca') talentTypeDmgBonus = totalStats.charged_attack_dmg_bonus || 0;
+    else if (effectiveTalentType === 'plunge') talentTypeDmgBonus = totalStats.plunge_attack_dmg_bonus || 0;
     else if (effectiveTalentType === 'skill') talentTypeDmgBonus = totalStats.skill_dmg_bonus || 0;
+    else if (effectiveTalentType === 'burst') talentTypeDmgBonus = totalStats.burst_dmg_bonus || 0;
     
     const damageBonusMultiplier = 1 + elementalDmgBonus + (totalStats.all_dmg_bonus || 0) + talentTypeDmgBonus;
     

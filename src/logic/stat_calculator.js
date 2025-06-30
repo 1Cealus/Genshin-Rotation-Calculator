@@ -2,7 +2,12 @@ const defaultFinalStats = {
     hp: 0, atk: 0, def: 0, crit_rate: 0.05, crit_dmg: 0.50, em: 0, er: 1.0,
     pyro_dmg_bonus: 0, hydro_dmg_bonus: 0, dendro_dmg_bonus: 0, electro_dmg_bonus: 0,
     anemo_dmg_bonus: 0, cryo_dmg_bonus: 0, geo_dmg_bonus: 0, physical_dmg_bonus: 0,
-    all_res_shred: 0, all_dmg_bonus: 0, normal_attack_dmg_bonus: 0, burst_dmg_bonus: 0,
+    all_res_shred: 0, all_dmg_bonus: 0, 
+    normal_attack_dmg_bonus: 0, 
+    charged_attack_dmg_bonus: 0,
+    plunge_attack_dmg_bonus: 0,
+    skill_dmg_bonus: 0,
+    burst_dmg_bonus: 0,
 };
 
 export function calculateTotalStats(state, gameData, charKey) {
@@ -115,12 +120,20 @@ export function calculateTotalStats(state, gameData, charKey) {
             
             if (buffDef.dynamic_effects && buffDef.dynamic_effects.type !== 'flat_damage_bonus') {
                 const dynamic = buffDef.dynamic_effects;
-                const holderBuild = characterBuilds[buffDef.source_character] || characterBuilds[team.find(c => characterBuilds[c]?.weapon.key === buffDef.source_weapon)];
-                let maxStacks = buffDef.stackable?.max_stacks || 1;
-                const currentStacks = Math.min(buffState.stacks || 1, maxStacks);
+                
+                let holderBuild = characterBuilds[buffDef.source_character];
+                if (!holderBuild && buffDef.source_weapon) {
+                    const holderKey = team.find(c => c && characterBuilds[c]?.weapon?.key === buffDef.source_weapon);
+                    if (holderKey) {
+                        holderBuild = characterBuilds[holderKey];
+                    }
+                }
 
-                if (!holderBuild && !['ramping_stacking_stat', 'stat_conversion', 'stack_based_lookup', 'refinement_based_stat', 'talent_level_based_stat', 'talent_level_stacking_stat'].includes(dynamic.type)) return;
+                const currentStacks = Math.min(buffState.stacks || 1, buffDef.stackable?.max_stacks || 1);
 
+                if (!holderBuild && !['ramping_stacking_stat', 'stat_conversion', 'stack_based_lookup'].includes(dynamic.type)) return;
+
+                // --- BUG FIX: This switch statement now includes all dynamic types ---
                 switch(dynamic.type) {
                     case 'base_stat_scaling_buff': {
                         if (!holderBuild || !dynamic.scaling_stat || !dynamic.to_stat) break;
@@ -145,6 +158,7 @@ export function calculateTotalStats(state, gameData, charKey) {
                         break;
                     }
                     case 'refinement_based_stat': {
+                        if (!holderBuild) break;
                         const refinementIndex = (holderBuild.weapon.refinement || 1) - 1;
                         if (dynamic.stat && dynamic.values) {
                             addBonus(dynamic.stat, (dynamic.values[refinementIndex] || 0) * enhancementMultiplier);
@@ -156,7 +170,47 @@ export function calculateTotalStats(state, gameData, charKey) {
                         }
                         break;
                     }
-                    // Other cases like talent_level_based_stat, etc. would go here
+                    case 'stack_based_lookup': {
+                        if (!dynamic.values || !dynamic.stat) break;
+                        const bonusValue = dynamic.values[currentStacks - 1] || 0;
+                        if (Array.isArray(dynamic.stat)) {
+                            dynamic.stat.forEach(s => addBonus(s, bonusValue * enhancementMultiplier));
+                        } else {
+                            addBonus(dynamic.stat, bonusValue * enhancementMultiplier);
+                        }
+                        break;
+                    }
+                    case 'talent_level_based_stat': {
+                        if (!holderBuild || !dynamic.talent || !dynamic.stat || !dynamic.values) break;
+                        const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                        const bonusValue = dynamic.values[talentLevel - 1] || 0;
+                        addBonus(dynamic.stat, bonusValue * enhancementMultiplier);
+                        break;
+                    }
+                    case 'ramping_stacking_stat': {
+                        if (!dynamic.stat) break;
+                        const baseValue = dynamic.base_value || 0;
+                        const valuePerStack = dynamic.value_per_stack || 0;
+                        const totalBonus = baseValue + (valuePerStack * currentStacks);
+                        addBonus(dynamic.stat, totalBonus * enhancementMultiplier);
+                        break;
+                    }
+                    case 'talent_level_stacking_stat': {
+                        if (!holderBuild || !dynamic.talent || !dynamic.stat || !dynamic.values) break;
+                        const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                        const bonusPerStack = dynamic.values[talentLevel - 1] || 0;
+                        addBonus(dynamic.stat, (bonusPerStack * currentStacks) * enhancementMultiplier);
+                        break;
+                    }
+                    case 'stacking_stat_bonus': {
+                        if (!holderBuild || holderBuild.constellation < buffDef.constellation) break;
+                        const sourceBuff = activeBuffs[dynamic.buff_to_check];
+                        if (sourceBuff?.active && sourceBuff.stacks > 0) {
+                            const bonusValue = dynamic.values[sourceBuff.stacks - 1] || 0;
+                            addBonus(dynamic.stat, bonusValue * enhancementMultiplier);
+                        }
+                        break;
+                    }
                 }
             }
         });
@@ -190,8 +244,10 @@ export function calculateTotalStats(state, gameData, charKey) {
                 let ratio = dynamic.ratio || 0;
                 if (dynamic.talent_level_based) {
                     const holderBuild = characterBuilds[buffDef.source_character];
-                    const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
-                    ratio = dynamic.values[talentLevel - 1] || 0;
+                    if (holderBuild) {
+                        const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                        ratio = dynamic.values[talentLevel - 1] || 0;
+                    }
                 }
                 finalStats[dynamic.to_stat] = (finalStats[dynamic.to_stat] || 0) + (fromStatValue * ratio);
             }

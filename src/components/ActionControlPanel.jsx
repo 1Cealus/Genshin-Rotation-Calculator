@@ -16,33 +16,43 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             return acc;
         }, {});
 
+        // Get the talent type of the specific action being edited
+        const actionTalent = characterData[action.characterKey]?.talents?.[action.talentKey];
+        const actionTalentType = actionTalent?.applies_talent_type_bonus || actionTalent?.scaling_talent;
+
         return Object.entries(buffData).filter(([buffKey, buff]) => {
-            let isAvailable = false;
-            // Check availability based on the source of the buff
-            if (buff.source_type === 'character' && team.includes(buff.source_character)) isAvailable = true;
-            if (buff.source_type === 'weapon' && activeTeamWeapons.includes(buff.source_weapon)) isAvailable = true;
-            if (buff.source_type === 'constellation' && team.includes(buff.source_character)) {
-                 const build = characterBuilds[buff.source_character];
-                 isAvailable = build && build.constellation >= buff.constellation;
+            if (buff.is_passive) {
+                return false;
             }
-            if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) isAvailable = true;
+
+            // --- NEW: Filter buffs based on the action's talent type ---
+            if (buff.applies_to_talent_type_bonus && !buff.applies_to_talent_type_bonus.includes(actionTalentType)) {
+                return false;
+            }
+            // --- END NEW ---
+
+            let isAvailable = false;
             
-            if (buff.source_type === 'elemental_resonance') {
-                // Hide automatic resonances from the panel, they are applied by the stat calculator directly
+            if (buff.source_type === 'character') {
+                isAvailable = team.includes(buff.source_character);
+            } else if (buff.source_type === 'constellation') {
+                const sourceCharBuild = characterBuilds[buff.source_character];
+                isAvailable = team.includes(buff.source_character) && sourceCharBuild && sourceCharBuild.constellation >= buff.constellation;
+            } else if (buff.source_type === 'weapon') {
+                isAvailable = activeTeamWeapons.includes(buff.source_weapon);
+            } else if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) {
+                isAvailable = equipped4pcSets.includes(buff.source_set);
+            } else if (buff.source_type === 'elemental_resonance') {
                 if (buff.is_automatic) {
                     isAvailable = false;
                 } else {
-                    // For manual resonances (like Cryo), check if the team meets the requirements
                     const requiredCount = buff.required_count || 2;
-                    if (buff.elements && buff.elements.some(el => elementCounts[el] >= requiredCount)) {
-                        isAvailable = true;
-                    }
+                    isAvailable = buff.elements && buff.elements.some(el => elementCounts[el] >= requiredCount);
                 }
             }
 
             if (!isAvailable) return false;
 
-            // Filter out self-only buffs if the action character isn't the source
             if (buff.teamwide === false) { 
                 const actionCharacterBuild = characterBuilds[action.characterKey];
                 
@@ -62,7 +72,7 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             
             return true;
         });
-    }, [team, characterBuilds, buffData, action.characterKey, characterData]);
+    }, [team, characterBuilds, buffData, action, characterData]);
 
     const filteredBuffs = useMemo(() => {
         if (!searchTerm) return availableBuffs;
@@ -85,7 +95,6 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
         } else {
             const newBuffState = { active: true };
             if (buffDefinition.stackable) {
-                // For Cryo resonance, default to 15 stacks (15% CR)
                 if (buffKey === 'resonance_cryo') {
                     newBuffState.stacks = 15;
                 } else {
@@ -168,7 +177,7 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                                 )}
                             </div>
                         ))}
-                         {filteredBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No available buffs match for the current team.</p>}
+                         {filteredBuffs.length === 0 && <p className="text-center text-gray-500 text-sm py-4">No available buffs match for this action type.</p>}
                     </div>
                 </div>
                 

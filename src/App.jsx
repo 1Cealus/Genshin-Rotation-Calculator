@@ -146,6 +146,64 @@ export default function App() {
         return () => unsubAuth();
     }, [isGameDataLoading, gameData]);
 
+    // --- BUG FIX: Cleanup effect for rotation state ---
+    useEffect(() => {
+        // Don't run this logic until all data is loaded to prevent premature cleanup
+        if (isGameDataLoading || !gameData) return;
+
+        const { buffData } = gameData;
+        const activeTeamCharacters = team.filter(Boolean);
+        const activeTeamWeapons = activeTeamCharacters.map(c => characterBuilds[c]?.weapon.key).filter(Boolean);
+
+        const newRotation = rotation
+            // 1. Remove actions from characters no longer on the team
+            .filter(action => activeTeamCharacters.includes(action.characterKey))
+            // 2. For each remaining action, clean up its buffs
+            .map(action => {
+                const newAction = JSON.parse(JSON.stringify(action)); // Deep copy to avoid state mutation issues
+                const currentBuffs = newAction.config.activeBuffs;
+                const cleanedBuffs = {};
+
+                Object.keys(currentBuffs).forEach(buffKey => {
+                    const buffDef = buffData[buffKey];
+                    if (!buffDef) return; // If buff definition doesn't exist, remove it
+
+                    let isBuffStillValid = true;
+
+                    // Check if the source of the buff is still valid for the current team
+                    if (buffDef.source_type === 'character' || buffDef.source_type === 'constellation') {
+                        if (!activeTeamCharacters.includes(buffDef.source_character)) {
+                            isBuffStillValid = false;
+                        }
+                        // Specifically check if constellation level is still met
+                        if (buffDef.source_type === 'constellation') {
+                            const sourceCharBuild = characterBuilds[buffDef.source_character];
+                            if (!sourceCharBuild || sourceCharBuild.constellation < buffDef.constellation) {
+                                isBuffStillValid = false;
+                            }
+                        }
+                    } else if (buffDef.source_type === 'weapon') {
+                        if (!activeTeamWeapons.includes(buffDef.source_weapon)) {
+                            isBuffStillValid = false;
+                        }
+                    }
+
+                    if (isBuffStillValid) {
+                        cleanedBuffs[buffKey] = currentBuffs[buffKey];
+                    }
+                });
+
+                newAction.config.activeBuffs = cleanedBuffs;
+                return newAction;
+            });
+
+        // Only update state if the rotation has actually changed to avoid an infinite loop
+        if (JSON.stringify(newRotation) !== JSON.stringify(rotation)) {
+            setRotation(newRotation);
+        }
+
+    }, [team, characterBuilds, gameData, isGameDataLoading]); // This effect depends on team and build changes
+
     useEffect(() => {
         if (isUserLoading || isGameDataLoading || !user || user.isAnonymous) {
             return;
