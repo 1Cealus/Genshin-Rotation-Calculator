@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, usedCharacters, characterData }) => {
     const charInfo = charKey ? characterData[charKey] : null;
@@ -50,6 +50,42 @@ const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, us
             </div>
         );
     }
+};
+
+const ActiveResonances = ({ team, characterData }) => {
+    const resonances = useMemo(() => {
+        const elementCounts = team.reduce((acc, charKey) => {
+            if (charKey && characterData[charKey]) {
+                const element = characterData[charKey].element;
+                acc[element] = (acc[element] || 0) + 1;
+            }
+            return acc;
+        }, {});
+
+        const activeResonances = [];
+        if (elementCounts.pyro >= 2) activeResonances.push({ name: 'Fervent Flames', color: 'text-red-400' });
+        if (elementCounts.hydro >= 2) activeResonances.push({ name: 'Soothing Water', color: 'text-sky-400' });
+        if (elementCounts.cryo >= 2) activeResonances.push({ name: 'Shattering Ice', color: 'text-cyan-400' });
+        if (elementCounts.geo >= 2) activeResonances.push({ name: 'Enduring Rock', color: 'text-yellow-400' });
+        if (elementCounts.dendro >= 2) activeResonances.push({ name: 'Sprawling Greenery', color: 'text-green-400' });
+        
+        return activeResonances;
+    }, [team, characterData]);
+
+    if (resonances.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="p-3 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)]">
+            <h4 className="text-sm font-bold text-white mb-2">Active Resonances</h4>
+            <div className="space-y-1">
+                {resonances.map(res => (
+                    <div key={res.name} className={`text-xs font-semibold ${res.color}`}>{res.name}</div>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 
@@ -126,6 +162,11 @@ export const Sidebar = ({
                             characterData={characterData}
                         />
                     ))}
+                    {/* --- NEW: Active Resonances Display --- */}
+                    <div className="pt-2">
+                        <ActiveResonances team={team} characterData={characterData} />
+                    </div>
+                    {/* --- END NEW --- */}
                 </div>
             </div>
             

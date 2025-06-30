@@ -5,6 +5,7 @@ import { getFirestore, collection, getDocs } from "firebase/firestore";
 let gameDataCache = null;
 let dataPromise = null;
 
+// --- MODIFIED: Added 'resonances' to the list of collections to fetch ---
 const collectionsToFetch = [
   'characters',
   'weapons',
@@ -12,7 +13,8 @@ const collectionsToFetch = [
   'enemies',
   'artifact_sets',
   'artifact_stats',
-  'main_stat_values'
+  'main_stat_values',
+  'resonances' // <-- ADD THIS LINE
 ];
 
 // Helper to convert a Firestore collection snapshot to a key-value object
@@ -45,17 +47,21 @@ async function fetchGameData(db) {
 
     const snapshots = await Promise.all(promises);
 
+    // --- MODIFIED: Merge the new resonance data into the main buffData object ---
+    const resonanceData = snapshotToObjects(snapshots[7]); // Get data from the 'resonances' snapshot
+    const mainBuffData = snapshotToObjects(snapshots[2]);  // Get data from the original 'buffs' snapshot
+
     const fetchedData = {
         characterData: snapshotToObjects(snapshots[0]),
         weaponData: snapshotToObjects(snapshots[1]),
-        buffData: snapshotToObjects(snapshots[2]),
+        buffData: { ...mainBuffData, ...resonanceData }, // <-- COMBINE BUFFS AND RESONANCES HERE
         enemyData: snapshotToObjects(snapshots[3]),
         artifactSets: snapshotToObjects(snapshots[4]),
         artifactStats: snapshotToObjects(snapshots[5]),
         mainStatValues: snapshotToObjects(snapshots[6]),
     };
 
-    console.log("Successfully fetched all game data.");
+    console.log("Successfully fetched all game data, including resonances.");
     return fetchedData;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously, addDoc } from './firebase';
 import { isFirebaseConfigValid } from './config.js';
-import { useModal } from './context/ModalContext.jsx'; // <-- Import the modal hook
+import { useModal } from './context/ModalContext.jsx';
 
 // Component Imports
 import { NavigationSidebar } from './components/NavigationSidebar';
@@ -199,7 +199,7 @@ export default function App() {
             const talentInfo = charInfo?.talents?.[action.talentKey];
 
             if (!action.characterKey || !action.talentKey || !charBuild || !talentInfo) {
-                return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0, damageType: 'physical' }, repeat: 1 };
+                return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0, damageType: 'physical' }, formula: null, repeat: 1 };
             }
             
             const state = {
@@ -213,12 +213,25 @@ export default function App() {
                 enemy: gameData.enemyData[enemyKey],
                 team,
                 characterBuilds,
+                characterKey: action.characterKey,
                 talentKey: action.talentKey,
                 config: action.config,
             };
 
-            const damage = calculateFinalDamage(state, gameData);
-            return { actionId: action.id, charKey: action.characterKey, talentKey: action.talentKey, damage, repeat: action.repeat || 1 };
+            const result = calculateFinalDamage(state, gameData);
+            return { 
+                actionId: action.id, 
+                charKey: action.characterKey, 
+                talentKey: action.talentKey, 
+                damage: { 
+                    avg: result.avg, 
+                    crit: result.crit, 
+                    nonCrit: result.nonCrit, 
+                    damageType: result.damageType 
+                }, 
+                formula: result.formula,
+                repeat: action.repeat || 1 
+            };
         });
     }, [rotation, characterBuilds, enemyKey, team, gameData]);
 
@@ -237,7 +250,7 @@ export default function App() {
             if(!charInfo || !charInfo.name) return;
 
             const charName = charInfo.name;
-            const charElement = charInfo.element; // <-- Get character element
+            const charElement = charInfo.element;
 
             const talentName = gameData.characterData[res.charKey].talents[res.talentKey].name;
             const damageType = res.damage.damageType;
@@ -245,8 +258,6 @@ export default function App() {
             
             grandTotalDamage += actionTotalDamage;
 
-            // --- MODIFICATION HERE ---
-            // Ensure the characterMetrics object includes the element
             if (!characterMetrics[charName]) {
                 characterMetrics[charName] = { total: 0, element: charElement };
             }

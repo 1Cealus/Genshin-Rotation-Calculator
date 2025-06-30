@@ -34,7 +34,7 @@ const TalentInput = ({ tKey, value, onUpdate }) => {
                 max="15" 
                 value={localLevel} 
                 onChange={handleLocalChange}
-                onBlur={handleBlur} // Update on blur
+                onBlur={handleBlur}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                 className="w-full p-3 text-center rounded-lg border-2 border-slate-600 bg-slate-700 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-200 font-bold text-lg hover:border-slate-500" 
             />
@@ -156,8 +156,8 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameDat
             characterBuilds: {}, 
             activeBuffs: {} 
         };
-        return calculateTotalStats(state, gameData);
-    }, [build, charInfo, weaponData, gameData]);
+        return calculateTotalStats(state, gameData, charKey);
+    }, [build, charInfo, weaponData, gameData, charKey]);
 
     const handleUpdate = (path, value) => {
         const newBuild = JSON.parse(JSON.stringify(build));

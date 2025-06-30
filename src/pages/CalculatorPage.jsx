@@ -6,12 +6,59 @@ import { BulkEditPanel } from '../components/BulkEditPanel';
 import { BuildEditorModal } from '../components/BuildEditorModal';
 import { ActionControlPanel } from '../components/ActionControlPanel';
 
+// Tooltip component to display the damage formula breakdown
+const DamageFormulaTooltip = ({ formula, talent }) => {
+    // Render nothing if there's no formula data
+    if (!formula) return null;
+    
+    const {
+        baseMultiplier,
+        scalingStat,
+        scalingStatValue,
+        baseDamage,
+        totalFlatDamageBonus,
+        additiveBaseDamage,
+        damageBonusMultiplier,
+        critDmg,
+        enemyDefMultiplier,
+        enemyResMultiplier,
+        amplifyingReactionMultiplier,
+    } = formula;
+
+    // Helper to format numbers for display
+    const formatNum = (num, digits = 0) => num.toLocaleString(undefined, {maximumFractionDigits: digits});
+
+    return (
+        // The tooltip is positioned relative to its parent and appears on hover
+        <div className="absolute bottom-full mb-2 w-max max-w-md bg-slate-900 border-2 border-[var(--color-accent-primary)] rounded-lg p-4 text-xs shadow-2xl z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="font-mono space-y-1 text-slate-300">
+                <h4 className="font-bold text-white text-sm mb-2">Damage Calculation</h4>
+                {/* Base Damage Section */}
+                <p><span className="text-cyan-400">Base Damage:</span> ({(baseMultiplier * 100).toFixed(1)}% * {formatNum(scalingStatValue)} <span className='uppercase text-gray-500'>{scalingStat}</span>) = {formatNum(baseDamage)}</p>
+                {/* Flat Damage Additives */}
+                <p><span className="text-cyan-400">Flat Bonuses:</span> +{formatNum(totalFlatDamageBonus)} (Shenhe/Yunjin etc.)</p>
+                <p><span className="text-cyan-400">Additive Reactions:</span> +{formatNum(additiveBaseDamage)} (Aggravate/Spread)</p>
+                
+                <div className="border-t border-gray-700 my-1"></div>
+                
+                {/* Multipliers Section */}
+                <p><span className="text-purple-400">DMG Bonus Multi:</span> x{(damageBonusMultiplier).toFixed(3)} (from {((damageBonusMultiplier - 1) * 100).toFixed(1)}% bonus)</p>
+                <p><span className="text-purple-400">Crit Multi:</span> x{(1 + critDmg).toFixed(3)} (from {(critDmg * 100).toFixed(1)}% CRIT DMG)</p>
+                <p><span className="text-red-400">Enemy DEF Multi:</span> x{(enemyDefMultiplier).toFixed(3)}</p>
+                <p><span className="text-red-400">Enemy RES Multi:</span> x{(enemyResMultiplier).toFixed(3)}</p>
+                <p><span className="text-orange-400">Vape/Melt Multi:</span> x{(amplifyingReactionMultiplier).toFixed(3)}</p>
+            </div>
+        </div>
+    );
+};
+
+
 export const CalculatorPage = ({
     team, handleTeamChange, setEditingBuildFor,
-    enemyKey, setEnemyKey, user, gameData, isAdmin, // <-- Added isAdmin
+    enemyKey, setEnemyKey, user, gameData, isAdmin,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet, // <-- Added onSaveToMastersheet
+    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet,
     rotation, rotationDuration, setRotationDuration,
     mainView, setMainView,
     activeActionTray, setActiveActionTray,
@@ -46,7 +93,6 @@ export const CalculatorPage = ({
                     onSavePreset={onSavePreset} onLoadPreset={onLoadPreset} onDeletePreset={onDeletePreset}
                     onExport={onExport} onImport={onImport} onClearAll={onClearAll}
                     gameData={gameData}
-                    // --- FIX IS HERE: Pass the props down to the Sidebar ---
                     isAdmin={isAdmin}
                     onSaveToMastersheet={onSaveToMastersheet}
                 />
@@ -89,6 +135,7 @@ export const CalculatorPage = ({
                                     const result = calculationResults.find(res => res.actionId === action.id);
                                     const damage = result?.damage || { avg: 0, crit: 0, nonCrit: 0 };
                                     const char = characterData[action.characterKey];
+                                    const talent = char?.talents?.[action.talentKey];
                                     const totalDamageForAction = (damage.avg || 0) * (action.repeat || 1);
                                     const isSelected = selectedActionIds.includes(action.id);
                                     return (
@@ -100,7 +147,7 @@ export const CalculatorPage = ({
                                             <div className="flex items-center gap-3 flex-grow min-w-0">
                                                 <img src={char?.iconUrl} alt={char?.name} className="w-10 h-10 rounded-full shrink-0" onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/40x40/2d3748/e2e8f0?text=??'; }} />
                                                 <div>
-                                                    <p className="font-semibold truncate">{char?.name} - <span className="text-[var(--color-accent-primary)]">{char?.talents?.[action.talentKey]?.name || 'Unknown Action'}</span></p>
+                                                    <p className="font-semibold truncate">{char?.name} - <span className="text-[var(--color-accent-primary)]">{talent?.name || 'Unknown Action'}</span></p>
                                                     <div className="flex gap-4 text-xs text-brand-text-light mt-1">
                                                         <span>Crit: <span className="text-white font-mono">{(damage.crit || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
                                                         <span>Non-Crit: <span className="text-white font-mono">{(damage.nonCrit || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
@@ -113,7 +160,13 @@ export const CalculatorPage = ({
                                             </div>
                                             <div className="text-right shrink-0 w-28">
                                                 <p className="font-bold text-xl text-white">{totalDamageForAction.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                                <p className="text-xs text-brand-text-light">Avg: {(damage.avg || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                                <div className="flex items-center justify-end gap-1 text-xs text-brand-text-light relative group">
+                                                    <span>Avg: {(damage.avg || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                                    <div className='cursor-help text-gray-500'>
+                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.064.293.006.399.287.47l.45.083.082.38-2.29.287zM8 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
+                                                    </div>
+                                                    <DamageFormulaTooltip formula={result?.formula} talent={talent} />
+                                                </div>
                                             </div>
                                             <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-1 shrink-0">
                                                 <button onClick={() => handleDuplicateAction(action.id)} className="btn btn-secondary text-xs py-1 px-3">Dup</button>

@@ -30,7 +30,12 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
                     setIsStacksMixed(true);
                 }
             } else {
-                setStacks(1);
+                // For Cryo resonance, default to 15 stacks (15% CR)
+                if (buffKey === 'resonance_cryo') {
+                    setStacks(15);
+                } else {
+                    setStacks(1);
+                }
                 setIsStacksMixed(false);
             }
         }
@@ -38,7 +43,8 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
 
     const handleToggle = () => {
         const shouldApply = status !== 'on'; 
-        onBulkApplyBuffs(buffKey, { active: shouldApply, stacks: stacks || 1 });
+        const newStacks = buffKey === 'resonance_cryo' && shouldApply ? 15 : (stacks || 1);
+        onBulkApplyBuffs(buffKey, { active: shouldApply, stacks: newStacks });
     };
 
     const handleStackChange = (e) => {
@@ -84,14 +90,12 @@ const BulkBuffControl = ({ buffKey, buff, selectedActions, onBulkApplyBuffs }) =
 
 
 export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, onClose, team, characterBuilds, gameData }) => {
-    const { buffData } = gameData;
+    const { buffData, characterData } = gameData;
 
     const availableBuffs = useMemo(() => {
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
-        // --- NEW LOGIC STARTS HERE ---
-        // First, determine if all selected actions belong to a single character.
         const selectedChars = new Set(
             rotation
                 .filter(action => selectedActionIds.includes(action.id))
@@ -100,26 +104,41 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
 
         const isSingleCharacterSelection = selectedChars.size === 1;
         const singleCharacterKey = isSingleCharacterSelection ? selectedChars.values().next().value : null;
+        
+        const elementCounts = team.reduce((acc, charKey) => {
+            if (charKey && characterData[charKey]) {
+                const element = characterData[charKey].element;
+                acc[element] = (acc[element] || 0) + 1;
+            }
+            return acc;
+        }, {});
 
         return Object.entries(buffData).filter(([buffKey, buff]) => {
-            // Check if the buff provider is on the team
-            let isAvailableOnTeam = false;
+            let isAvailable = false;
+            
+            // Determine if buff is available on the team based on its source type
             if (buff.source_type === 'character' || buff.source_type === 'constellation') {
-                isAvailableOnTeam = team.includes(buff.source_character);
+                isAvailable = team.includes(buff.source_character);
             } else if (buff.source_type === 'weapon') {
-                isAvailableOnTeam = activeTeamWeapons.includes(buff.source_weapon);
+                isAvailable = activeTeamWeapons.includes(buff.source_weapon);
             } else if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc')) {
-                isAvailableOnTeam = equipped4pcSets.includes(buff.source_set);
+                isAvailable = equipped4pcSets.includes(buff.source_set);
+            } else if (buff.source_type === 'elemental_resonance') {
+                // Return false immediately for automatic buffs so they don't show in the panel
+                if (buff.is_automatic) {
+                    return false; 
+                }
+                // Otherwise, check if the team meets the criteria for this manual resonance
+                const requiredCount = buff.required_count || 2;
+                isAvailable = buff.elements && buff.elements.some(el => elementCounts[el] >= requiredCount);
             }
-            if (!isAvailableOnTeam) return false;
 
+            if (!isAvailable) return false;
 
-            // Now, filter based on teamwide status
-            if (buff.teamwide === false) { // This is a self-only buff
-                // If multiple characters are selected, don't show self-only buffs
+            // Now, filter based on teamwide status for self-only buffs
+            if (buff.teamwide === false) { 
                 if (!isSingleCharacterSelection) return false;
                 
-                // If one character is selected, only show if they are the source of the buff
                 const characterBuild = characterBuilds[singleCharacterKey];
                 if ((buff.source_type === 'character' || buff.source_type === 'constellation') && buff.source_character !== singleCharacterKey) return false;
                 if (buff.source_type === 'weapon' && characterBuild?.weapon?.key !== buff.source_weapon) return false;
@@ -129,10 +148,10 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
                 }
             }
 
-            // If we reach here, the buff is team-wide OR it's a valid self-only buff for the selection.
+            // If we've passed all checks, include the buff in the list
             return true;
         });
-    }, [team, characterBuilds, buffData, rotation, selectedActionIds]);
+    }, [team, characterBuilds, buffData, rotation, selectedActionIds, characterData]);
 
     const selectedActions = useMemo(() => 
         rotation.filter(action => selectedActionIds.includes(action.id)),

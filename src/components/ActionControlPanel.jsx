@@ -8,9 +8,17 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
         const activeTeamWeapons = team.map(charKey => characterBuilds[charKey]?.weapon.key).filter(Boolean);
         const equipped4pcSets = team.map(charKey => characterBuilds[charKey]?.artifacts.set_4pc).filter(set => set && set !== 'no_set');
 
+        const elementCounts = team.reduce((acc, charKey) => {
+            if (charKey && characterData[charKey]) {
+                const element = characterData[charKey].element;
+                acc[element] = (acc[element] || 0) + 1;
+            }
+            return acc;
+        }, {});
+
         return Object.entries(buffData).filter(([buffKey, buff]) => {
             let isAvailable = false;
-            // First, check if the buff is even possible with the current team
+            // Check availability based on the source of the buff
             if (buff.source_type === 'character' && team.includes(buff.source_character)) isAvailable = true;
             if (buff.source_type === 'weapon' && activeTeamWeapons.includes(buff.source_weapon)) isAvailable = true;
             if (buff.source_type === 'constellation' && team.includes(buff.source_character)) {
@@ -19,21 +27,31 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             }
             if (buff.source_type === 'artifact_set' && buffKey.includes('_4pc') && equipped4pcSets.includes(buff.source_set)) isAvailable = true;
             
+            if (buff.source_type === 'elemental_resonance') {
+                // Hide automatic resonances from the panel, they are applied by the stat calculator directly
+                if (buff.is_automatic) {
+                    isAvailable = false;
+                } else {
+                    // For manual resonances (like Cryo), check if the team meets the requirements
+                    const requiredCount = buff.required_count || 2;
+                    if (buff.elements && buff.elements.some(el => elementCounts[el] >= requiredCount)) {
+                        isAvailable = true;
+                    }
+                }
+            }
+
             if (!isAvailable) return false;
 
-            // Now, filter based on whether it's team-wide or self-only
-            if (buff.teamwide === false) { // This is a self-only buff
+            // Filter out self-only buffs if the action character isn't the source
+            if (buff.teamwide === false) { 
                 const actionCharacterBuild = characterBuilds[action.characterKey];
                 
-                // Check character-sourced self-buffs
                 if ((buff.source_type === 'character' || buff.source_type === 'constellation') && buff.source_character !== action.characterKey) {
                     return false;
                 }
-                // Check weapon-sourced self-buffs
                 if (buff.source_type === 'weapon' && actionCharacterBuild?.weapon?.key !== buff.source_weapon) {
                     return false;
                 }
-                // Check artifact-sourced self-buffs
                 if (buff.source_type === 'artifact_set') {
                     const characterSets = [actionCharacterBuild?.artifacts?.set_2pc, actionCharacterBuild?.artifacts?.set_4pc];
                     if (!characterSets.includes(buff.source_set)) {
@@ -42,10 +60,9 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                 }
             }
             
-            // If it's a team-wide buff (or teamwide is not specified), it's always shown
             return true;
         });
-    }, [team, characterBuilds, buffData, action.characterKey]);
+    }, [team, characterBuilds, buffData, action.characterKey, characterData]);
 
     const filteredBuffs = useMemo(() => {
         if (!searchTerm) return availableBuffs;
@@ -68,7 +85,12 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
         } else {
             const newBuffState = { active: true };
             if (buffDefinition.stackable) {
-                newBuffState.stacks = 1; 
+                // For Cryo resonance, default to 15 stacks (15% CR)
+                if (buffKey === 'resonance_cryo') {
+                    newBuffState.stacks = 15;
+                } else {
+                    newBuffState.stacks = 1; 
+                }
             }
             newBuffs[buffKey] = newBuffState;
         }

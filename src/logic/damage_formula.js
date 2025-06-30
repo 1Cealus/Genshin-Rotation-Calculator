@@ -1,10 +1,9 @@
-// src/logic/damage_formula.js
 import { calculateTotalStats } from './stat_calculator.js';
 
 export function calculateFinalDamage(state, gameData) {
-    const { talent, character, characterBuild, activeBuffs, talentKey, config } = state; 
+    const { talent, character, characterBuild, activeBuffs, talentKey, config, characterKey } = state; 
     const { buffData } = gameData;
-    const totalStats = calculateTotalStats(state, gameData); 
+    const totalStats = calculateTotalStats(state, gameData, characterKey); 
 
     const talentCategory = talent.scaling_talent;
     const talentLevel = characterBuild.talentLevels?.[talentCategory] || 1;
@@ -48,9 +47,11 @@ export function calculateFinalDamage(state, gameData) {
     }
 
     let baseDamage = 0;
-    if (talent.scaling_stat === 'atk') baseDamage = baseMultiplier * totalStats.atk;
-    else if (talent.scaling_stat === 'hp') baseDamage = baseMultiplier * totalStats.hp;
-    else if (talent.scaling_stat === 'def') baseDamage = baseMultiplier * totalStats.def;
+    const scalingStatValue = totalStats[talent.scaling_stat] || 0;
+    if (talent.scaling_stat === 'atk') baseDamage = baseMultiplier * scalingStatValue;
+    else if (talent.scaling_stat === 'hp') baseDamage = baseMultiplier * scalingStatValue;
+    else if (talent.scaling_stat === 'def') baseDamage = baseMultiplier * scalingStatValue;
+
 
     if (talent.flat_scaling_talent) {
         const flatTalentLevel = characterBuild.talentLevels?.[talent.scaling_talent] || 1;
@@ -153,6 +154,21 @@ export function calculateFinalDamage(state, gameData) {
         avg: avgDamage || 0, 
         crit: critHit || 0, 
         nonCrit: nonCritHit || 0,
-        damageType: damageType
+        damageType: damageType,
+        formula: {
+            baseDamage,
+            scalingStat: talent.scaling_stat,
+            scalingStatValue,
+            baseMultiplier,
+            additiveBaseDamage,
+            totalFlatDamageBonus,
+            damageBonusMultiplier,
+            critRate,
+            critDmg: totalStats.crit_dmg,
+            enemyDefMultiplier,
+            enemyResMultiplier,
+            amplifyingReactionMultiplier,
+            finalDamageMultiplier,
+        }
     };
 }
