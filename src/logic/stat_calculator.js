@@ -20,6 +20,8 @@ export function calculateTotalStats(state, gameData, charKey) {
 
     const modifiedCharacter = { ...character };
 
+    // This loop specifically handles the rare case of a passive C2 adding to BASE attack (like Mavuika's)
+    // before main calculations begin.
     if (characterBuild.constellation > 0 && charKey) {
         Object.values(buffData).forEach(buffDef => {
             if (
@@ -43,6 +45,7 @@ export function calculateTotalStats(state, gameData, charKey) {
     const bonuses = {};
     const addBonus = (stat, value) => { bonuses[stat] = (bonuses[stat] || 0) + value; };
 
+    // --- Base Stats from Character, Weapon, and Artifacts ---
     if (character.ascension_stat && character.ascension_value) { addBonus(character.ascension_stat, character.ascension_value); }
     for (const key in weapon.stats) { addBonus(key, weapon.stats[key]); }
     const weaponRefinement = weapon.refinements[characterBuild.weapon.refinement - 1] || {};
@@ -57,6 +60,23 @@ export function calculateTotalStats(state, gameData, charKey) {
     if (set_4pc && set_4pc !== 'no_set' && buffData[`${set_4pc}_2pc`]?.effects) { for (const key in buffData[`${set_4pc}_2pc`].effects) addBonus(key, buffData[`${set_4pc}_2pc`].effects[key]);
     } else if (set_2pc && set_2pc !== 'no_set' && buffData[`${set_2pc}_2pc`]?.effects) { for (const key in buffData[`${set_2pc}_2pc`].effects) addBonus(key, buffData[`${set_2pc}_2pc`].effects[key]); }
 
+    // --- NEW: Apply character-specific passive buffs (A1, A4, etc.) ---
+    Object.values(buffData).forEach(buffDef => {
+        if (
+            buffDef.is_passive &&
+            buffDef.source_type === 'character' &&
+            buffDef.source_character === charKey && // Only apply if it belongs to the character we're calculating for
+            buffDef.effects
+        ) {
+            for (const stat in buffDef.effects) {
+                if (stat !== 'base_atk_flat') { // Base ATK is handled in its own separate loop
+                    addBonus(stat, buffDef.effects[stat]);
+                }
+            }
+        }
+    });
+
+    // --- Apply Passive Constellation effects from Teammates ---
     if (team && characterBuilds) {
         team.forEach(teammateKey => {
             if (!teammateKey) return;
@@ -73,6 +93,7 @@ export function calculateTotalStats(state, gameData, charKey) {
         });
     }
 
+    // --- Apply Elemental Resonances ---
     const elementCounts = team.reduce((acc, charKey) => {
         if (charKey && characterData[charKey]) {
             const element = characterData[charKey].element;
@@ -88,6 +109,7 @@ export function calculateTotalStats(state, gameData, charKey) {
         addBonus('res_shred_geo', 0.20);
     }
 
+    // --- Apply ACTIVATED buffs for the current action ---
     if (activeBuffs) {
         Object.entries(activeBuffs).forEach(([buffKey, buffState]) => {
             if (!buffState.active) return;
@@ -135,7 +157,6 @@ export function calculateTotalStats(state, gameData, charKey) {
 
                 if (!holderBuild && !['ramping_stacking_stat', 'stat_conversion', 'stack_based_lookup'].includes(dynamic.type)) return;
 
-                // --- BUG FIX: This switch statement now includes all dynamic types ---
                 switch(dynamic.type) {
                     case 'base_stat_scaling_buff': {
                         if (!holderBuild || !dynamic.scaling_stat || !dynamic.to_stat) break;

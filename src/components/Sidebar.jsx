@@ -1,4 +1,79 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+
+const CharacterPicker = ({ onSelect, availableCharacters, usedCharacters }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const pickerRef = useRef(null);
+
+    const filteredCharacters = useMemo(() => {
+        return Object.entries(availableCharacters)
+            .filter(([key, char]) => 
+                !usedCharacters.includes(key) &&
+                char.name.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .sort(([, a], [, b]) => a.name.localeCompare(b.name));
+    }, [searchTerm, availableCharacters, usedCharacters]);
+
+    const handleSelect = (charKey) => {
+        onSelect({ target: { value: charKey } }); 
+        setIsOpen(false);
+        setSearchTerm('');
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    return (
+        <div className="relative" ref={pickerRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full h-[72px] bg-transparent border-2 border-dashed border-[var(--color-border-primary)] hover:border-[var(--color-accent-primary)] rounded-lg text-lg font-bold focus:outline-none focus:border-[var(--color-accent-primary)] transition-all flex items-center justify-center text-[var(--color-text-secondary)] font-semibold"
+            >
+                + Add Character
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full mt-1 w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] rounded-lg shadow-2xl z-20 p-2 flex flex-col gap-2">
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
+                        className="p-2"
+                        autoFocus
+                    />
+                    <div className="max-h-60 overflow-y-auto">
+                        {filteredCharacters.length > 0 ? (
+                            filteredCharacters.map(([key, char]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => handleSelect(key)}
+                                    className="w-full text-left p-2 rounded-md text-white font-semibold hover:bg-[var(--color-accent-primary)] hover:text-slate-900 transition-colors"
+                                >
+                                    {char.name}
+                                </button>
+                            ))
+                        ) : (
+                            <p className="p-2 text-center text-sm text-[var(--color-text-secondary)]">No characters found.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, usedCharacters, characterData }) => {
     const charInfo = charKey ? characterData[charKey] : null;
@@ -27,27 +102,11 @@ const TeamSlot = ({ charKey, onSelect, onEdit, onRemove, availableCharacters, us
         );
     } else {
         return (
-             <div className="relative">
-                <select
-                    value=""
-                    onChange={onSelect}
-                    className="appearance-none w-full h-[72px] bg-transparent border-2 border-dashed border-[var(--color-border-primary)] hover:border-[var(--color-accent-primary)] rounded-lg p-2 text-lg font-bold focus:outline-none focus:border-[var(--color-accent-primary)] transition-all text-center text-transparent"
-                >
-                    <option value="" disabled className="bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]">
-                        + Add Character
-                    </option>
-                    {Object.entries(availableCharacters)
-                        .filter(([key]) => !usedCharacters.includes(key))
-                        .map(([key, char]) => (
-                        <option key={key} value={key} className="bg-[var(--color-bg-secondary)] text-white font-semibold">
-                            {char.name}
-                        </option>
-                    ))}
-                </select>
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     <span className="text-[var(--color-text-secondary)] font-semibold">+ Add Character</span>
-                </div>
-            </div>
+             <CharacterPicker 
+                onSelect={onSelect}
+                availableCharacters={availableCharacters}
+                usedCharacters={usedCharacters}
+             />
         );
     }
 };
@@ -162,11 +221,9 @@ export const Sidebar = ({
                             characterData={characterData}
                         />
                     ))}
-                    {/* --- NEW: Active Resonances Display --- */}
                     <div className="pt-2">
                         <ActiveResonances team={team} characterData={characterData} />
                     </div>
-                    {/* --- END NEW --- */}
                 </div>
             </div>
             

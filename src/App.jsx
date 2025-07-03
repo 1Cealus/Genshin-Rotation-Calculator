@@ -45,7 +45,7 @@ const createDefaultBuild = (charKey, characterData) => {
     };
 };
 
-const initialTeam = ['skirk', 'furina', 'mona', 'escoffier'];
+const initialTeam = ['', '', '', ''];
 
 export default function App() {
     const { showModal } = useModal();

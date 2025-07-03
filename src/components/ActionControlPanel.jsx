@@ -16,7 +16,6 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             return acc;
         }, {});
 
-        // Get the talent type of the specific action being edited
         const actionTalent = characterData[action.characterKey]?.talents?.[action.talentKey];
         const actionTalentType = actionTalent?.applies_talent_type_bonus || actionTalent?.scaling_talent;
 
@@ -25,11 +24,9 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                 return false;
             }
 
-            // --- NEW: Filter buffs based on the action's talent type ---
             if (buff.applies_to_talent_type_bonus && !buff.applies_to_talent_type_bonus.includes(actionTalentType)) {
                 return false;
             }
-            // --- END NEW ---
 
             let isAvailable = false;
             
@@ -119,10 +116,11 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             <div className="bg-gray-900/80 rounded-2xl shadow-xl p-6 w-full max-w-2xl text-white border-2 border-gray-700 flex flex-col gap-6">
                 <h2 className="text-2xl font-bold text-cyan-400">Configure: {talentInfo.name}</h2>
                 
+                {/* --- REWORKED SECTION: Changed checkboxes to dropdowns for more flexibility --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Reaction</label>
-                        <select value={action.config.reactionType} onChange={e => handleUpdateConfig('reactionType', e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <select value={action.config.reactionType || 'none'} onChange={e => handleUpdateConfig('reactionType', e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                             <option value="none">No Reaction</option>
                             <option value="vaporize_1.5">Vaporize (1.5x)</option>
                             <option value="vaporize_2.0">Vaporize (2.0x)</option>
@@ -133,13 +131,21 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                         </select>
                     </div>
                      {talentInfo.can_be_infused && (
-                        <div className="flex items-center justify-center bg-gray-800 p-2 rounded-md border border-gray-600">
-                            <input type="checkbox" id={`infusion-${action.id}`} checked={action.config.infusion === 'dendro'} onChange={e => handleUpdateConfig('infusion', e.target.checked ? 'dendro' : null)} className="h-4 w-4 rounded bg-gray-900 border-gray-500 text-cyan-500 focus:ring-cyan-600" />
-                            <label htmlFor={`infusion-${action.id}`} className="ml-3 text-sm text-gray-200">Dendro Infusion</label>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Infusion</label>
+                            <select value={action.config.infusion || 'none'} onChange={e => handleUpdateConfig('infusion', e.target.value === 'none' ? null : e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                <option value="none">No Infusion</option>
+                                <option value="pyro">Pyro</option>
+                                <option value="hydro">Hydro</option>
+                                <option value="electro">Electro</option>
+                                <option value="cryo">Cryo</option>
+                                <option value="dendro">Dendro</option>
+                            </select>
                         </div>
                     )}
                 </div>
-                
+                {/* --- END REWORKED SECTION --- */}
+
                 {action.characterKey === 'skirk' && ['burst_ruin_slash', 'burst_ruin_final_slash'].includes(action.talentKey) && (
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Serpent's Subtlety Consumed</label>

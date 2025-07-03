@@ -9,18 +9,27 @@ export function calculateFinalDamage(state, gameData) {
     const talentLevel = characterBuild.talentLevels?.[talentCategory] || 1;
     let baseMultiplier = talent.multipliers ? talent.multipliers[talentLevel - 1] : 0;
 
+    // Final and Correct Additive MV Logic for mechanics like Arlecchino's
     if (talent.additive_mv_bonus && activeBuffs) {
         const bonusInfo = talent.additive_mv_bonus;
-        const sourceBuff = activeBuffs[bonusInfo.buff_to_check];
+        const sourceBuff = activeBuffs[bonusInfo.buff_to_check]; // e.g., Masque of the Red Death buff
 
         if (sourceBuff?.active && sourceBuff.stacks > 0) {
             const { characterBuilds } = state; 
             
             const ratioTalentHolder = characterBuilds[bonusInfo.source_character] || characterBuild;
             const ratioTalentLevel = ratioTalentHolder.talentLevels?.[bonusInfo.scaling_talent] || 1;
+            
+            // The ratio per stack (e.g., Masque Ratio / 100)
             const ratioPerStack = bonusInfo.values[ratioTalentLevel - 1] || 0;
             
-            const bonusMultiplier = sourceBuff.stacks * ratioPerStack;
+            let bonusMultiplier = sourceBuff.stacks * ratioPerStack;
+
+            // Check if there is a C1-style enhancement buff active
+            if (bonusInfo.enhancement_buff && activeBuffs[bonusInfo.enhancement_buff]?.active) {
+                bonusMultiplier *= (bonusInfo.enhancement_multiplier || 2.0); // Default to doubling the bonus
+            }
+
             baseMultiplier += bonusMultiplier;
         }
     }
@@ -69,25 +78,46 @@ export function calculateFinalDamage(state, gameData) {
 
             const dynamic = buffDef.dynamic_effects;
             const { characterBuilds } = state;
-
+            
             const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory;
             const appliesToTalent = !dynamic.applies_to_talents || dynamic.applies_to_talents.includes(talentKey);
-            const appliesToType = !dynamic.applies_to_talent_type_bonus || effectiveTalentType === dynamic.applies_to_talent_type_bonus;
-            
-            if (appliesToTalent && appliesToType) {
-                const scalingStatValue = totalStats[dynamic.scaling_stat] || 0;
-                let finalMultiplier = dynamic.multiplier;
+            const appliesToType = dynamic.applies_to_talent_type_bonus ? dynamic.applies_to_talent_type_bonus.includes(effectiveTalentType) : true;
 
-                if (dynamic.talent_level_based && dynamic.talent && dynamic.values) {
-                    const holderBuild = characterBuilds[buffDef.source_character];
-                    if (holderBuild) {
-                        const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
-                        finalMultiplier = dynamic.values[talentLevel - 1] || 0;
-                    }
+            if (talent.flat_damage_bonus?.buff_to_check === buffKey) {
+            } else if (!appliesToTalent || !appliesToType) {
+                if (!appliesToTalent && !dynamic.applies_to_talent_type_bonus) return;
+                if(dynamic.applies_to_talent_type_bonus && !appliesToType) return;
+            }
+            
+            const scalingStatValue = totalStats[dynamic.scaling_stat] || 0;
+            let finalMultiplier = dynamic.multiplier;
+
+            if (dynamic.talent_level_based && dynamic.talent && dynamic.values) {
+                const holderBuild = characterBuilds[buffDef.source_character];
+                if (holderBuild) {
+                    const talentLevel = (holderBuild.talentLevels[dynamic.talent] || 1);
+                    finalMultiplier = dynamic.values[talentLevel - 1] || 0;
+                }
+            }
+            
+            let flatBonus = scalingStatValue * finalMultiplier;
+
+            if (dynamic.apply_stack_multiplier === "percent") {
+                let stacks = 0;
+                if (dynamic.stack_source_buff) {
+                    stacks = activeBuffs[dynamic.stack_source_buff]?.stacks || 0;
+                } else {
+                    stacks = buffState.stacks || 0;
                 }
                 
-                totalFlatDamageBonus += scalingStatValue * finalMultiplier;
+                if (stacks > 0) {
+                    flatBonus *= (stacks / 100);
+                } else {
+                    flatBonus = 0;
+                }
             }
+
+            totalFlatDamageBonus += flatBonus;
         });
     }
 
@@ -105,7 +135,6 @@ export function calculateFinalDamage(state, gameData) {
     
     const elementalDmgBonus = totalStats[`${damageType}_dmg_bonus`] || 0;
     
-    // MODIFIED: This section now correctly checks for all specific attack types
     const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory; 
     let talentTypeDmgBonus = 0;
     if (effectiveTalentType === 'na') talentTypeDmgBonus = totalStats.normal_attack_dmg_bonus || 0;

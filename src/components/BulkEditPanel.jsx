@@ -108,12 +108,16 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
             return acc;
         }, {});
 
+        
+        const characterKeysInSelection = [...new Set(selectedActions.map(action => action.characterKey))];
+        const isSingleCharacterSelection = characterKeysInSelection.length === 1;
+        const singleCharKey = isSingleCharacterSelection ? characterKeysInSelection[0] : null;
+
         return Object.entries(buffData).filter(([buffKey, buff]) => {
             if (buff.is_passive) {
                 return false;
             }
 
-            // --- NEW: Filter buffs based on the selected actions' talent types ---
             if (buff.applies_to_talent_type_bonus) {
                 const allSelectedActionsAreValid = selectedActions.every(action => {
                     const actionTalent = characterData[action.characterKey]?.talents?.[action.talentKey];
@@ -125,7 +129,6 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
                     return false;
                 }
             }
-            // --- END NEW ---
 
             let isAvailable = false;
             
@@ -149,9 +152,29 @@ export const BulkEditPanel = ({ rotation, selectedActionIds, onBulkApplyBuffs, o
 
             if (!isAvailable) return false;
 
-            if (buff.teamwide === false) { 
-                return false;
+            if (buff.teamwide === false) {
+                
+                if (!isSingleCharacterSelection) {
+                    return false;
+                }
+
+
+                const charBuildForSelection = characterBuilds[singleCharKey];
+                
+                if (buff.source_character && buff.source_character !== singleCharKey) {
+                    return false;
+                }
+                if (buff.source_weapon && charBuildForSelection?.weapon.key !== buff.source_weapon) {
+                    return false;
+                }
+                if (buff.source_set) {
+                    const characterSets = [charBuildForSelection?.artifacts.set_2pc, charBuildForSelection?.artifacts.set_4pc];
+                    if (!characterSets.includes(buff.source_set)) {
+                        return false;
+                    }
+                }
             }
+
 
             return true;
         });
