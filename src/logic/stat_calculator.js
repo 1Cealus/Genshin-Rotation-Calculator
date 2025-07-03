@@ -8,6 +8,8 @@ const defaultFinalStats = {
     plunge_attack_dmg_bonus: 0,
     skill_dmg_bonus: 0,
     burst_dmg_bonus: 0,
+    def_shred: 0,
+    def_ignore: 0,
 };
 
 export function calculateTotalStats(state, gameData, charKey) {

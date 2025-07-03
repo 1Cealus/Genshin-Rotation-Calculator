@@ -118,7 +118,11 @@ export function calculateFinalDamage(state, gameData) {
     
     const critRate = Math.max(0, Math.min(1, totalStats.crit_rate));
     const critMultiplier = 1 + totalStats.crit_dmg;
-    const enemyDefMultiplier = (characterBuild.level + 100) / ((characterBuild.level + 100) + (state.enemy.level + 100) * (1 - (totalStats.def_shred || 0)));
+    
+    const defReduction = totalStats.def_shred || 0;
+    const defIgnore = totalStats.def_ignore || 0;
+    const enemyDefMultiplier = (characterBuild.level + 100) / 
+        ((characterBuild.level + 100) + (state.enemy.level + 100) * (1 - defReduction) * (1 - defIgnore));
     
     let resShred = (totalStats.all_res_shred || 0) + (totalStats[`res_shred_${damageType}`] || 0);
     let finalEnemyRes = state.enemy.base_res[damageType] - resShred;
