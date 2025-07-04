@@ -62,10 +62,13 @@ export function calculateTotalStats(state, gameData, charKey) {
 
     // --- NEW: Apply character-specific passive buffs (A1, A4, etc.) ---
     Object.values(buffData).forEach(buffDef => {
+        const isCorrectConstellation = !buffDef.constellation || characterBuild.constellation >= buffDef.constellation;
+
         if (
             buffDef.is_passive &&
             buffDef.source_type === 'character' &&
             buffDef.source_character === charKey && // Only apply if it belongs to the character we're calculating for
+            isCorrectConstellation && // <-- MODIFICATION: Check constellation level
             buffDef.effects
         ) {
             for (const stat in buffDef.effects) {

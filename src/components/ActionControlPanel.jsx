@@ -146,7 +146,7 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
                 </div>
                 {/* --- END REWORKED SECTION --- */}
 
-                {action.characterKey === 'skirk' && ['burst_ruin_slash', 'burst_ruin_final_slash'].includes(action.talentKey) && (
+                {action.characterKey === 'skirk' && ['burst_slash', 'burst_final_slash'].includes(action.talentKey) && (
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Serpent's Subtlety Consumed</label>
                         <input type="number" min="50" value={action.config.serpent_subtlety_consumed || 50} onChange={e => handleUpdateConfig('serpent_subtlety_consumed', parseInt(e.target.value))} className="w-full bg-gray-800 border border-gray-600 rounded-md p-2"/>

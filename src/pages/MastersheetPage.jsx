@@ -21,19 +21,36 @@ const PresetRow = ({ preset, gameData, onLoadPreset, setPage, isAdmin, handleDel
             <div className="flex-grow">
                 <h3 className="font-bold text-lg text-white">{name}</h3>
                 <div className="flex items-center gap-4 mt-2">
-                    {team.map(charKey => charKey && characterData[charKey] && (
-                        <div key={charKey} className="flex flex-col items-center">
-                            <img src={characterData[charKey].iconUrl} alt={characterData[charKey].name} className="w-12 h-12 rounded-full border-2 border-slate-600" />
-                            {characterBuilds[charKey]?.weapon?.key && weaponData[characterBuilds[charKey].weapon.key] &&
-                                <img 
-                                    src={weaponData[characterBuilds[charKey].weapon.key].iconUrl} 
-                                    alt={weaponData[characterBuilds[charKey].weapon.key].name}
-                                    className="w-8 h-8 rounded-full -mt-4 border-2 border-slate-900 bg-slate-700"
-                                    onError={(e) => e.target.style.visibility = 'hidden'}
-                                />
-                            }
-                        </div>
-                    ))}
+                    {team.map(charKey => {
+                        if (!charKey || !characterData[charKey]) return null;
+                        
+                        const constellation = characterBuilds[charKey]?.constellation;
+                        const weapon = characterBuilds[charKey]?.weapon?.key ? weaponData[characterBuilds[charKey].weapon.key] : null;
+
+                        return (
+                            <div key={charKey} className="flex flex-col items-center" title={`${characterData[charKey].name} - C${constellation || 0}`}>
+                                <div className="relative">
+                                    <img src={characterData[charKey].iconUrl} alt={characterData[charKey].name} className="w-12 h-12 rounded-full border-2 border-slate-600" />
+                                    {constellation > 0 && (
+                                        <div className="absolute -bottom-1 -right-1 bg-slate-900/80 backdrop-blur-sm rounded-full w-5 h-5 flex items-center justify-center border border-slate-500">
+                                            <span className="text-white text-xs font-bold" style={{ textShadow: '0 0 3px black' }}>
+                                                {constellation}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {weapon &&
+                                    <img 
+                                        src={weapon.iconUrl} 
+                                        alt={weapon.name}
+                                        title={weapon.name}
+                                        className="w-8 h-8 rounded-full -mt-4 border-2 border-slate-900 bg-slate-700"
+                                        onError={(e) => e.target.style.visibility = 'hidden'}
+                                    />
+                                }
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
 
