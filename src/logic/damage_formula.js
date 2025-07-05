@@ -9,6 +9,23 @@ export function calculateFinalDamage(state, gameData) {
     const talentLevel = characterBuild.talentLevels?.[talentCategory] || 1;
     let baseMultiplier = talent.multipliers ? talent.multipliers[talentLevel - 1] : 0;
 
+    if (activeBuffs) {
+        const effectiveTalentType = talent.applies_talent_type_bonus || talentCategory;
+        Object.entries(activeBuffs).forEach(([buffKey, buffState]) => {
+            if (!buffState.active) return;
+            const buffDef = buffData[buffKey]; 
+            
+            if (buffDef?.dynamic_effects?.type === 'mv_increase') {
+                const dynamic = buffDef.dynamic_effects;
+                // --- THIS IS THE CORRECTED LINE ---
+                // It now correctly looks for the property on the buff definition itself (buffDef), not inside the dynamic_effects object.
+                if (buffDef.applies_to_talent_type_bonus && buffDef.applies_to_talent_type_bonus.includes(effectiveTalentType)) {
+                    baseMultiplier += dynamic.value;
+                }
+            }
+        });
+    }
+
     if (talent.additive_mv_bonus && activeBuffs) {
         const bonusInfo = talent.additive_mv_bonus;
         const sourceBuff = activeBuffs[bonusInfo.buff_to_check];

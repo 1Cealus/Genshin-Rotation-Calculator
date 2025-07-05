@@ -100,6 +100,12 @@ export const ActionControlPanel = ({ action, team, characterBuilds, updateAction
             }
             newBuffs[buffKey] = newBuffState;
         }
+
+    console.log(`%c[Debug Panel] Toggled buff: '${buffKey}'. The new list of active buffs is now:`, 'color: #f59e0b;', newBuffs);
+
+
+    handleUpdateConfig('activeBuffs', newBuffs);
+
         handleUpdateConfig('activeBuffs', newBuffs);
     };
 

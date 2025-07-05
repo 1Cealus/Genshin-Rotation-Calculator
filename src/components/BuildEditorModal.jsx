@@ -265,7 +265,7 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameDat
                                 {['na', 'skill', 'burst'].map(tKey => (
                                     <TalentInput
                                         key={tKey}
-                                        tKey={tKey}
+                                        tKey={tKey.toUpperCase()}
                                         value={build.talentLevels?.[tKey]}
                                         onUpdate={newLevel => handleUpdate(['talentLevels', tKey], newLevel)}
                                     />
@@ -277,30 +277,31 @@ export const BuildEditorModal = ({ charKey, build, updateBuild, onClose, gameDat
                     <div className="space-y-6 lg:col-span-1">
                         <Section title="Artifacts">
                             <div className="space-y-4">
+                                {/* --- UI FIX: Simplified artifact set selection --- */}
                                 <div className="grid grid-cols-1 gap-4">
                                     <div>
-                                        <label className="text-sm font-semibold text-gray-300 block mb-2">2-Piece Set</label>
+                                        <label className="text-sm font-semibold text-gray-300 block mb-2">Primary Set Bonus</label>
                                         <select 
-                                            value={build.artifacts?.set_2pc || 'no_set'} 
-                                            onChange={e => handleUpdate(['artifacts', 'set_2pc'], e.target.value)}
+                                            value={build.artifacts?.set_4pc || build.artifacts?.set_2pc || 'no_set'} 
+                                            onChange={e => {
+                                                const newBuild = JSON.parse(JSON.stringify(build));
+                                                // When a user selects a set, we store it in the 4pc slot.
+                                                // The stat calculator will determine if it should apply a 2pc or 4pc bonus.
+                                                newBuild.artifacts.set_4pc = e.target.value;
+                                                newBuild.artifacts.set_2pc = 'no_set'; // Clear the old 2pc slot to avoid conflicts.
+                                                updateBuild(charKey, newBuild);
+                                            }}
                                             className="w-full p-3 rounded-lg border-2 border-slate-600 bg-slate-700 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-200 hover:border-slate-500"
                                         >
                                             <option value="no_set">None</option>
                                             {Object.entries(artifactSets).filter(([k]) => k !== 'no_set').map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-semibold text-gray-300 block mb-2">4-Piece Set</label>
-                                        <select 
-                                            value={build.artifacts?.set_4pc || 'no_set'} 
-                                            onChange={e => handleUpdate(['artifacts', 'set_4pc'], e.target.value)}
-                                            className="w-full p-3 rounded-lg border-2 border-slate-600 bg-slate-700 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-200 hover:border-slate-500"
-                                        >
-                                            <option value="no_set">None</option>
-                                            {Object.entries(artifactSets).filter(([k]) => k !== 'no_set').map(([key, set]) => <option key={key} value={key}>{set.name}</option>)}
-                                        </select>
+                                         <p className="text-xs text-slate-400 mt-2">
+                                            Select the main set. The calculator automatically applies the 2-piece bonus. 4-piece bonuses are activated in the rotation builder.
+                                        </p>
                                     </div>
                                 </div>
+                                {/* --- END UI FIX --- */}
                                 <div className="space-y-3">
                                    {artifactPieces.map(pieceName => (
                                        <ArtifactPieceEditor
