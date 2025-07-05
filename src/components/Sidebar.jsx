@@ -198,14 +198,42 @@ export const Sidebar = ({
     team, handleTeamChange, setEditingBuildFor,
     enemyKey, setEnemyKey, user, gameData, isAdmin,
     onExport, onImport, onClearAll,
+    isFetchingProfile, handleFetchEnkaData,
     presetName, setPresetName, savedPresets,
     onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet
 }) => {
     const [showPresets, setShowPresets] = useState(false);
+    const [uid, setUid] = useState('');
     const { characterData, enemyData } = gameData;
+
+    const handleUidFetch = () => {
+        handleFetchEnkaData(uid);
+    }
 
     return (
         <aside className="bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6 h-full">
+            {/* UID Fetcher Section */}
+            <div className="flex-shrink-0">
+                 <h2 className="text-2xl font-bold text-white mb-3">Profile Import</h2>
+                 <div className="p-3 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)] space-y-2">
+                    <label className="text-sm text-[var(--color-text-secondary)] block">
+                        Import builds via UID (Enka.Network)
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={uid}
+                            onChange={(e) => setUid(e.target.value)}
+                            placeholder="Enter 9-digit UID..."
+                            disabled={isFetchingProfile}
+                        />
+                        <button onClick={handleUidFetch} className="btn btn-primary" disabled={isFetchingProfile}>
+                            {isFetchingProfile ? '...' : 'Fetch'}
+                        </button>
+                    </div>
+                 </div>
+            </div>
+
             <div className="flex flex-col gap-4 flex-grow min-h-0">
                 <h2 className="text-2xl font-bold text-white flex-shrink-0">Team & Builds</h2>
                 <div className="space-y-3 overflow-y-auto pr-2 flex-grow">

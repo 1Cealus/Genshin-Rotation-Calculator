@@ -113,7 +113,7 @@ const ActionRow = ({ action, result, isSelected, onSelect, onRepeatChange, onDup
 
 export const CalculatorPage = ({
     team, handleTeamChange, setEditingBuildFor,
-    enemyKey, setEnemyKey, user, gameData, isAdmin,
+    enemyKey, setEnemyKey, user, gameData, isAdmin, isFetchingProfile,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
     onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet,
@@ -124,7 +124,7 @@ export const CalculatorPage = ({
     editingBuildFor,
     selectedActionIds, setSelectedActionIds,
     showBulkEdit, setShowBulkEdit,
-    calculationResults, analyticsData, rotationSummary,
+    calculationResults, analyticsData, rotationSummary, handleFetchEnkaData,
     activeTeam,
     handleAddFromNotation, handleAddSingleAction,
     handleActionRepeatChange, handleDuplicateAction,
@@ -152,6 +152,8 @@ export const CalculatorPage = ({
                     onSavePreset={onSavePreset} onLoadPreset={onLoadPreset} onDeletePreset={onDeletePreset}
                     onExport={onExport} onImport={onImport} onClearAll={onClearAll}
                     gameData={gameData}
+                    isFetchingProfile={isFetchingProfile}
+                    handleFetchEnkaData={handleFetchEnkaData}
                     isAdmin={isAdmin}
                     onSaveToMastersheet={onSaveToMastersheet}
                 />

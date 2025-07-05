@@ -21,6 +21,7 @@ import { MastersheetPage } from './pages/MastersheetPage';
 // Utility and Data Imports
 import { parseNotation } from './utils/parseNotation.js';
 import { calculateFinalDamage } from './logic/damage_formula.js';
+import { parseEnkaData } from './utils/enka_parser.js';
 import { getGameData } from './data/loader.js';
 
 const ADMIN_UID = "RHK4HK166oe3kiCz3iEnybYcest1";
@@ -74,6 +75,7 @@ export default function App() {
     const [showBulkEdit, setShowBulkEdit] = useState(false);
     const importFileRef = useRef(null);
     
+    const [isFetchingProfile, setIsFetchingProfile] = useState(false);
     useEffect(() => {
         if (!isFirebaseConfigValid) {
             showModal({ title: 'Configuration Error', message: 'Firebase configuration is missing or invalid. Please check your .env file.' });
@@ -240,6 +242,41 @@ export default function App() {
         setTeam(newTeam);
         if (charKey && !characterBuilds[charKey]) {
             setCharacterBuilds(prev => ({...prev, [charKey]: createDefaultBuild(charKey, gameData.characterData)}));
+        }
+    };
+
+    const handleFetchEnkaData = async (uid) => {
+        if (!uid || !/^\d{9}$/.test(uid)) {
+            showModal({ title: 'Invalid UID', message: 'Please enter a valid 9-digit Genshin Impact UID.' });
+            return;
+        }
+        setIsFetchingProfile(true);
+        try {
+            // Using a CORS proxy for the fetch request in a browser environment.
+            // In a real-world scenario, your own backend would handle this.
+            const response = await fetch(`https://enka.network/api/uid/${uid}/`);
+
+            if (response.status === 404) throw new Error(`Player with UID ${uid} not found. Make sure the UID is correct and the player exists.`);
+            if (response.status === 429) throw new Error('You are being rate-limited by the API. Please try again in a few minutes.');
+            if (!response.ok) throw new Error(`Failed to fetch data. Status: ${response.status}`);
+
+            const data = await response.json();
+            
+            if (!data.avatarInfoList || data.avatarInfoList.length === 0) {
+                throw new Error("No characters found in the showcase. Make sure you have characters displayed on your in-game profile!");
+            }
+
+            const parsedBuilds = parseEnkaData(data, gameData);
+            
+            setCharacterBuilds(prev => ({ ...prev, ...parsedBuilds }));
+
+            showModal({ title: 'Success!', message: `Successfully imported builds for ${Object.keys(parsedBuilds).length} character(s) from UID ${uid}.` });
+
+        } catch (error) {
+            showModal({ title: 'Import Error', message: error.message });
+            console.error("Enka.Network fetch error:", error);
+        } finally {
+            setIsFetchingProfile(false);
         }
     };
     
@@ -477,7 +514,7 @@ export default function App() {
 
     const calculatorPageProps = {
         team, handleTeamChange, setEditingBuildFor,
-        enemyKey, setEnemyKey, user, gameData,
+        enemyKey, setEnemyKey, user, gameData, isFetchingProfile,
         isSaving, isAdmin,
         onExport: handleExportData, onImport: handleImportClick, onClearAll: handleClearAll,
         presetName, setPresetName, savedPresets,
@@ -491,7 +528,7 @@ export default function App() {
         selectedActionIds, setSelectedActionIds,
         showBulkEdit, setShowBulkEdit,
         calculationResults, analyticsData, rotationSummary,
-        activeTeam,
+        activeTeam, handleFetchEnkaData,
         handleAddFromNotation, handleAddSingleAction,
         handleActionRepeatChange, handleDuplicateAction,
         handleActionSelect, handleBulkApplyBuffs,
