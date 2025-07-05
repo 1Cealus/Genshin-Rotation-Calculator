@@ -1,4 +1,3 @@
-// src/components/ActionTray.jsx
 import React, { useState } from 'react';
 
 export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose, gameData }) => {
@@ -33,10 +32,10 @@ export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose, gameD
                         type="text"
                         value={notation}
                         onChange={(e) => setNotation(e.target.value)}
-                        placeholder="e.g., e s1 s2 s3a s3b s4a s4b s5 q"
+                        placeholder="e.g., e q n1 n2..."
                         className="flex-grow bg-gray-700/80 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
-                    <button onClick={handleNotationAdd} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors" >
+                    <button onClick={handleNotationAdd} className="btn btn-primary" >
                         Add
                     </button>
                  </div>
@@ -44,7 +43,8 @@ export const ActionTray = ({ charKey, onAddNotation, onAddSingle, onClose, gameD
 
             <div>
                  <label className="text-sm text-gray-300 block mb-1">Or Click to Add</label>
-                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                 {/* --- FIX: Added max-height and overflow classes to this div --- */}
+                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto pr-2">
                     {Object.entries(charInfo.talents).map(([talentKey, talent]) => (
                         <button 
                             key={talentKey}

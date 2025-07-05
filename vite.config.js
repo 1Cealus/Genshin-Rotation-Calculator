@@ -9,8 +9,9 @@ export default defineConfig({
       // Proxy requests from /api to enka.network
       '/api': {
         target: 'https://enka.network',
-        changeOrigin: true, // Needed for virtual hosted sites
-        rewrite: (path) => path.replace(/^\/api/, ''), // Rewrite the path, removing /api
+        changeOrigin: true,
+        // The rewrite rule was incorrect and has been removed.
+        // This will now correctly forward /api/... to https://enka.network/api/...
       },
     },
   },

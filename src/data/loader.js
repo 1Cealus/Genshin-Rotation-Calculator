@@ -5,7 +5,7 @@ import { getFirestore, collection, getDocs } from "firebase/firestore";
 let gameDataCache = null;
 let dataPromise = null;
 
-// --- MODIFIED: Added 'resonances' to the list of collections to fetch ---
+// --- MODIFIED: Added 'textMap' to the list of collections to fetch ---
 const collectionsToFetch = [
   'characters',
   'weapons',
@@ -14,14 +14,15 @@ const collectionsToFetch = [
   'artifact_sets',
   'artifact_stats',
   'main_stat_values',
-  'resonances' // <-- ADD THIS LINE
+  'resonances',
+  'textMap' // <-- ADD THIS LINE
 ];
 
 // Helper to convert a Firestore collection snapshot to a key-value object
 const snapshotToObjects = (snapshot) => {
     const data = {};
     if (snapshot.empty) {
-        console.warn(`Warning: Firestore collection returned no documents.`);
+        // It's normal for some collections to be empty, so we won't warn here.
         return data;
     }
     snapshot.forEach(doc => {
@@ -36,7 +37,7 @@ async function fetchGameData(db) {
         throw new Error("Firestore is not initialized. Cannot fetch game data.");
     }
     
-    const appId = 'default-app-id'; // Using 'default-app-id' as specified in your upload script
+    const appId = 'default-app-id'; 
     const dataPath = `artifacts/${appId}/public/data`;
     
     console.log("Fetching game data from Firestore path:", dataPath);
@@ -47,21 +48,23 @@ async function fetchGameData(db) {
 
     const snapshots = await Promise.all(promises);
 
-    // --- MODIFIED: Merge the new resonance data into the main buffData object ---
-    const resonanceData = snapshotToObjects(snapshots[7]); // Get data from the 'resonances' snapshot
-    const mainBuffData = snapshotToObjects(snapshots[2]);  // Get data from the original 'buffs' snapshot
+    // --- MODIFIED: Get data from snapshots by index ---
+    const resonanceData = snapshotToObjects(snapshots[7]);
+    const mainBuffData = snapshotToObjects(snapshots[2]);
+    const textMapData = snapshotToObjects(snapshots[8]); // Get textMap data from the new snapshot
 
     const fetchedData = {
         characterData: snapshotToObjects(snapshots[0]),
         weaponData: snapshotToObjects(snapshots[1]),
-        buffData: { ...mainBuffData, ...resonanceData }, // <-- COMBINE BUFFS AND RESONANCES HERE
+        buffData: { ...mainBuffData, ...resonanceData },
         enemyData: snapshotToObjects(snapshots[3]),
         artifactSets: snapshotToObjects(snapshots[4]),
         artifactStats: snapshotToObjects(snapshots[5]),
         mainStatValues: snapshotToObjects(snapshots[6]),
+        textMap: textMapData, // <-- ADD textMap TO THE FINAL GAMEDATA OBJECT
     };
 
-    console.log("Successfully fetched all game data, including resonances.");
+    console.log("Successfully fetched all game data, including textMap.");
     return fetchedData;
 }
 

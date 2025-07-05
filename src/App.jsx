@@ -252,9 +252,8 @@ export default function App() {
         }
         setIsFetchingProfile(true);
         try {
-            // Using a CORS proxy for the fetch request in a browser environment.
-            // In a real-world scenario, your own backend would handle this.
-            const response = await fetch(`https://enka.network/api/uid/${uid}/`);
+            // Fetch from the local proxy path
+            const response = await fetch(`/api/uid/${uid}/`);
 
             if (response.status === 404) throw new Error(`Player with UID ${uid} not found. Make sure the UID is correct and the player exists.`);
             if (response.status === 429) throw new Error('You are being rate-limited by the API. Please try again in a few minutes.');

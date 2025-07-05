@@ -33,23 +33,20 @@ const equipTypeMap = {
     EQUIP_DRESS: 'circlet',
 };
 
-/**
- * Finds the internal key for a weapon or artifact set by its name.
- * @param {string} name - The name of the item.
- * @param {object} dataObject - The weaponData or artifactSets object from gameData.
- * @returns {string|null} The internal key or null if not found.
- */
 const findKeyByName = (name, dataObject) => {
-    const entry = Object.entries(dataObject).find(([, value]) => value.name === name);
+    if (!name || !dataObject) return null;
+    const lowerCaseName = name.toLowerCase();
+    const entry = Object.entries(dataObject).find(([, value]) => value.name && value.name.toLowerCase() === lowerCaseName);
     return entry ? entry[0] : null;
 };
 
-/**
- * Parses the response from Enka.Network API into the calculator's build format.
- * @param {object} enkaData - The raw JSON data from the Enka.Network API.
- * @param {object} gameData - The calculator's internal game data for mapping.
- * @returns {object} An object containing the parsed character builds.
- */
+const findKeyById = (id, dataObject) => {
+    if (!id || !dataObject) return null;
+    const entry = Object.entries(dataObject).find(([, value]) => value.id === id);
+    return entry ? entry[0] : null;
+};
+
+
 export const parseEnkaData = (enkaData, gameData) => {
     if (!enkaData.avatarInfoList) {
         throw new Error('Invalid Enka.Network data: avatarInfoList is missing.');
@@ -61,17 +58,21 @@ export const parseEnkaData = (enkaData, gameData) => {
         const charId = avatar.avatarId;
         const charKey = Object.keys(gameData.characterData).find(key => gameData.characterData[key].id === charId);
 
-        if (!charKey) return; // Skip if character not found in our game data
+        if (!charKey) {
+            console.warn(`[Parser] Skipping character with official ID ${charId} because no matching character was found in local game data.`);
+            return; 
+        }
+        
+        console.log(`[Parser] Found character: ${gameData.characterData[charKey].name} (ID: ${charId}). Parsing build...`);
 
         const characterBuild = {
             level: avatar.propMap['4001'].val || 90,
             constellation: avatar.talentIdList?.length || 0,
             weapon: { key: 'no_weapon', refinement: 1 },
-            talentLevels: { na: 1, skill: 1, burst: 1 }, // Default talent levels
+            talentLevels: { na: 1, skill: 1, burst: 1 },
             artifacts: {},
         };
 
-        // Parse talents
         if (avatar.skillLevelMap) {
             const charTalentInfo = gameData.characterData[charKey].talents;
             const talentKeyMap = {};
@@ -82,7 +83,6 @@ export const parseEnkaData = (enkaData, gameData) => {
                 });
             }
             
-            // Default talent levels from game data
             characterBuild.talentLevels = {
                  na: gameData.characterData[charKey]?.default_talents?.na || 1,
                  skill: gameData.characterData[charKey]?.default_talents?.skill || 1,
@@ -94,19 +94,22 @@ export const parseEnkaData = (enkaData, gameData) => {
                 if (internalTalentKey) {
                     const talentType = charTalentInfo[internalTalentKey].scaling_talent;
                     if (talentType && characterBuild.talentLevels[talentType]) {
-                        // For characters like Raiden, talent levels can be shared. Use the highest value.
                         characterBuild.talentLevels[talentType] = Math.max(characterBuild.talentLevels[talentType], level);
                     }
                 }
             }
         }
 
-
-        // Parse weapon and artifacts
         avatar.equipList.forEach(item => {
             if (item.flat.itemType === 'ITEM_WEAPON') {
-                const weaponName = gameData.textMap[item.flat.nameTextMapHash];
-                const weaponKey = findKeyByName(weaponName, gameData.weaponData);
+                const weaponId = item.itemId;
+                console.log(`[Parser] Looking for weapon with ID: ${weaponId}`);
+                const weaponKey = findKeyById(weaponId, gameData.weaponData);
+                if(weaponKey) {
+                    console.log(`[Parser] --- Found weapon: ${gameData.weaponData[weaponKey].name}`);
+                } else {
+                    console.error(`[Parser] --- WEAPON NOT FOUND! Ensure a weapon with id: ${weaponId} exists in your weapon data file.`);
+                }
                 characterBuild.weapon = {
                     key: weaponKey || 'no_weapon',
                     refinement: (item.weapon.affixMap ? Object.values(item.weapon.affixMap)[0] : 0) + 1,
@@ -115,21 +118,25 @@ export const parseEnkaData = (enkaData, gameData) => {
                 const slotKey = equipTypeMap[item.flat.equipType];
                 if (slotKey) {
                     const mainStatKey = statMap[item.flat.reliquaryMainstat.mainPropId] || 'unknown';
-                    
                     const substats = {};
                     item.flat.reliquarySubstats.forEach(sub => {
                         const subStatKey = statMap[sub.appendPropId];
                         if (subStatKey) {
-                            // Convert percentages to decimals
                             substats[subStatKey] = ['hp_percent', 'atk_percent', 'def_percent', 'crit_rate', 'crit_dmg', 'er', 'healing_bonus'].includes(subStatKey)
                                 ? sub.statValue / 100
                                 : sub.statValue;
                         }
                     });
-
-                    // Set piece info
-                    const setName = gameData.textMap[item.flat.setNameTextMapHash];
+                    
+                    const setNameHash = item.flat.setNameTextMapHash;
+                    const setName = gameData.textMap[setNameHash];
+                    console.log(`[Parser] Looking for artifact set with Hash: ${setNameHash}, which translates to Name: "${setName || 'Unknown'}"`);
                     const setKey = findKeyByName(setName, gameData.artifactSets);
+                    if(setKey) {
+                         console.log(`[Parser] --- Found artifact set: ${gameData.artifactSets[setKey].name}`);
+                    } else {
+                         console.error(`[Parser] --- ARTIFACT SET NOT FOUND! Ensure a set with the name "${setName}" exists in your artifact data file, or that the hash ${setNameHash} exists in your textMap.`);
+                    }
 
                     characterBuild.artifacts[slotKey] = {
                         set: setKey,
@@ -140,7 +147,6 @@ export const parseEnkaData = (enkaData, gameData) => {
             }
         });
 
-        // Determine 2pc and 4pc set bonuses
         const setCounts = {};
         Object.values(characterBuild.artifacts).forEach(piece => {
             if (piece && piece.set) {
