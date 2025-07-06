@@ -1,11 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously, addDoc } from './firebase';
+import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, signInAnonymously, addDoc, Timestamp, updateDoc } from './firebase';
 import { isFirebaseConfigValid } from './config.js';
 import { useModal } from './context/ModalContext.jsx';
 
 // Component Imports
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { LoginModal } from './components/Login';
+import { CreateLeaderboardModal } from './components/CreateLeaderboardModal.jsx';
+import { EditLeaderboardModal } from './components/EditLeaderboardModal.jsx';
+
 
 // Page Imports
 import { HomePage } from './pages/HomePage';
@@ -16,6 +19,8 @@ import { WeaponArchivePage } from './pages/WeaponArchivePage';
 import { ArtifactArchivePage } from './pages/ArtifactArchivePage';
 import { EnemyArchivePage } from './pages/EnemyArchivePage';
 import { MastersheetPage } from './pages/MastersheetPage';
+import { LeaderboardListPage } from './pages/LeaderboardListPage.jsx';
+import { LeaderboardDetailPage } from './pages/LeaderboardDetailPage.jsx';
 
 
 // Utility and Data Imports
@@ -57,6 +62,7 @@ export default function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [page, setPage] = useState('home');
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showCreateLeaderboardModal, setShowCreateLeaderboardModal] = useState(false);
     const [newsItems, setNewsItems] = useState([]);
     const [gameData, setGameData] = useState(null);
 
@@ -76,6 +82,8 @@ export default function App() {
     const importFileRef = useRef(null);
     
     const [isFetchingProfile, setIsFetchingProfile] = useState(false);
+    const [currentLeaderboardId, setCurrentLeaderboardId] = useState(null);
+
     useEffect(() => {
         if (!isFirebaseConfigValid) {
             showModal({ title: 'Configuration Error', message: 'Firebase configuration is missing or invalid. Please check your .env file.' });
@@ -148,9 +156,7 @@ export default function App() {
         return () => unsubAuth();
     }, [isGameDataLoading, gameData]);
 
-    // --- BUG FIX: Cleanup effect for rotation state ---
     useEffect(() => {
-        // Don't run this logic until all data is loaded to prevent premature cleanup
         if (isGameDataLoading || !gameData) return;
 
         const { buffData } = gameData;
@@ -158,26 +164,22 @@ export default function App() {
         const activeTeamWeapons = activeTeamCharacters.map(c => characterBuilds[c]?.weapon.key).filter(Boolean);
 
         const newRotation = rotation
-            // 1. Remove actions from characters no longer on the team
             .filter(action => activeTeamCharacters.includes(action.characterKey))
-            // 2. For each remaining action, clean up its buffs
             .map(action => {
-                const newAction = JSON.parse(JSON.stringify(action)); // Deep copy to avoid state mutation issues
+                const newAction = JSON.parse(JSON.stringify(action));
                 const currentBuffs = newAction.config.activeBuffs;
                 const cleanedBuffs = {};
 
                 Object.keys(currentBuffs).forEach(buffKey => {
                     const buffDef = buffData[buffKey];
-                    if (!buffDef) return; // If buff definition doesn't exist, remove it
+                    if (!buffDef) return;
 
                     let isBuffStillValid = true;
 
-                    // Check if the source of the buff is still valid for the current team
                     if (buffDef.source_type === 'character' || buffDef.source_type === 'constellation') {
                         if (!activeTeamCharacters.includes(buffDef.source_character)) {
                             isBuffStillValid = false;
                         }
-                        // Specifically check if constellation level is still met
                         if (buffDef.source_type === 'constellation') {
                             const sourceCharBuild = characterBuilds[buffDef.source_character];
                             if (!sourceCharBuild || sourceCharBuild.constellation < buffDef.constellation) {
@@ -199,12 +201,11 @@ export default function App() {
                 return newAction;
             });
 
-        // Only update state if the rotation has actually changed to avoid an infinite loop
         if (JSON.stringify(newRotation) !== JSON.stringify(rotation)) {
             setRotation(newRotation);
         }
 
-    }, [team, characterBuilds, gameData, isGameDataLoading]); // This effect depends on team and build changes
+    }, [team, characterBuilds, gameData, isGameDataLoading]);
 
     useEffect(() => {
         if (isUserLoading || isGameDataLoading || !user || user.isAnonymous) {
@@ -212,8 +213,6 @@ export default function App() {
         }
 
         const debounceSave = setTimeout(() => {
-            console.log("Auto-saving workspace...");
-            
             const dataToSave = {
                 team,
                 characterBuilds,
@@ -245,14 +244,13 @@ export default function App() {
         }
     };
 
-    const handleFetchEnkaData = async (uid) => {
+    const handleFetchEnkaData = async (uid, designatedCharacterKey = null) => {
         if (!uid || !/^\d{9}$/.test(uid)) {
             showModal({ title: 'Invalid UID', message: 'Please enter a valid 9-digit Genshin Impact UID.' });
             return;
         }
         setIsFetchingProfile(true);
         try {
-            // Fetch from the local proxy path
             const response = await fetch(`/api/uid/${uid}/`);
 
             if (response.status === 404) throw new Error(`Player with UID ${uid} not found. Make sure the UID is correct and the player exists.`);
@@ -265,7 +263,7 @@ export default function App() {
                 throw new Error("No characters found in the showcase. Make sure you have characters displayed on your in-game profile!");
             }
 
-            const parsedBuilds = parseEnkaData(data, gameData);
+            const parsedBuilds = parseEnkaData(data, gameData, designatedCharacterKey);
             
             setCharacterBuilds(prev => ({ ...prev, ...parsedBuilds }));
 
@@ -451,6 +449,38 @@ export default function App() {
         }
     };
 
+    const handleCreateLeaderboard = async ({ name, designatedCharacterKey, description }) => {
+        if (!isAdmin) {
+            showModal({ title: "Permission Denied", message: "You do not have permission to perform this action." });
+            return;
+        }
+        setIsSaving(true);
+        const leaderboardData = {
+            name,
+            designatedCharacterKey,
+            description,
+            team,
+            characterBuilds,
+            rotation,
+            rotationDuration,
+            enemyKey,
+            createdAt: Timestamp.now(),
+        };
+
+        try {
+            const appId = 'default-app-id';
+            const leaderboardsCollectionRef = collection(db, `artifacts/${appId}/public/data/leaderboards`);
+            await addDoc(leaderboardsCollectionRef, leaderboardData);
+            showModal({ title: "Success", message: `Leaderboard "${name}" has been created!` });
+        } catch (error) {
+            console.error("Create leaderboard error:", error);
+            showModal({ title: "Creation Error", message: "Failed to create leaderboard." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+
     const handleLoadPreset = (preset) => { if (!preset) return; setTeam(preset.team); setCharacterBuilds(preset.characterBuilds); setRotation(preset.rotation.map(a => ({ ...a, repeat: a.repeat || 1 }))); setEnemyKey(preset.enemyKey); setRotationDuration(preset.rotationDuration); setPresetName(preset.name); };
     
     const handleDeletePreset = async (presetId) => {
@@ -519,6 +549,7 @@ export default function App() {
         presetName, setPresetName, savedPresets,
         onSavePreset: handleSavePreset, onLoadPreset: handleLoadPreset, onDeletePreset: handleDeletePreset,
         onSaveToMastersheet: handleSaveToMastersheet,
+        onShowCreateLeaderboardModal: () => setShowCreateLeaderboardModal(true),
         rotation, rotationDuration, setRotationDuration,
         mainView, setMainView,
         activeActionTray, setActiveActionTray,
@@ -535,10 +566,50 @@ export default function App() {
         characterBuilds,
     };
 
+    const renderPage = () => {
+        switch(page) {
+            case 'home':
+                return <HomePage setPage={setPage} newsItems={newsItems} />;
+            case 'calculator':
+                 if (user && gameData) {
+                    return <div className="h-full"><CalculatorPage {...calculatorPageProps} /></div>;
+                }
+                return null;
+            case 'admin':
+                return isAdmin && <AdminPage newsItems={newsItems}/>;
+            case 'characters':
+                return gameData && <CharacterArchivePage gameData={gameData} />;
+            case 'weapons':
+                return gameData && <WeaponArchivePage gameData={gameData} />;
+            case 'artifacts':
+                return gameData && <ArtifactArchivePage gameData={gameData} />;
+            case 'enemies':
+                return gameData && <EnemyArchivePage gameData={gameData} />;
+            case 'mastersheet':
+                return gameData && <MastersheetPage gameData={gameData} onLoadPreset={handleLoadPreset} setPage={setPage} isAdmin={isAdmin} />;
+            case 'leaderboards':
+                return gameData && <LeaderboardListPage gameData={gameData} setPage={setPage} setLeaderboardId={setCurrentLeaderboardId} />;
+            case 'leaderboardDetail':
+                 return gameData && <LeaderboardDetailPage leaderboardId={currentLeaderboardId} gameData={gameData} setPage={setPage} user={user} isAdmin={isAdmin} />;
+            default:
+                return <HomePage setPage={setPage} newsItems={newsItems} />;
+        }
+    }
+
+
     return (
         <div className="bg-brand-dark min-h-screen text-white flex h-screen overflow-hidden">
             <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
             {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+            {showCreateLeaderboardModal && isAdmin && (
+                <CreateLeaderboardModal
+                    isOpen={showCreateLeaderboardModal}
+                    onClose={() => setShowCreateLeaderboardModal(false)}
+                    onCreate={handleCreateLeaderboard}
+                    team={activeTeam}
+                    gameData={gameData}
+                />
+            )}
             
             <NavigationSidebar 
                 user={user}
@@ -550,15 +621,7 @@ export default function App() {
             />
             
             <main className="flex-grow flex-1 flex flex-col overflow-y-auto">
-                {page === 'home' && <HomePage setPage={setPage} newsItems={newsItems} />}
-                {page === 'calculator' && user && gameData && <div className="h-full"><CalculatorPage {...calculatorPageProps} /></div>}
-                {page === 'admin' && isAdmin && <AdminPage newsItems={newsItems}/>}
-                
-                {page === 'characters' && gameData && <CharacterArchivePage gameData={gameData} />}
-                {page === 'weapons' && gameData && <WeaponArchivePage gameData={gameData} />}
-                {page === 'artifacts' && gameData && <ArtifactArchivePage gameData={gameData} />}
-                {page === 'enemies' && gameData && <EnemyArchivePage gameData={gameData} />}
-                {page === 'mastersheet' && gameData && <MastersheetPage gameData={gameData} onLoadPreset={handleLoadPreset} setPage={setPage} isAdmin={isAdmin} />}
+                {renderPage()}
             </main>
         </div>
     );

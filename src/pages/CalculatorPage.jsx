@@ -116,7 +116,7 @@ export const CalculatorPage = ({
     enemyKey, setEnemyKey, user, gameData, isAdmin, isFetchingProfile,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet,
+    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet, onShowCreateLeaderboardModal,
     rotation, rotationDuration, setRotationDuration,
     mainView, setMainView,
     activeActionTray, setActiveActionTray,
@@ -156,6 +156,7 @@ export const CalculatorPage = ({
                     handleFetchEnkaData={handleFetchEnkaData}
                     isAdmin={isAdmin}
                     onSaveToMastersheet={onSaveToMastersheet}
+                    onShowCreateLeaderboardModal={onShowCreateLeaderboardModal}
                 />
             </div>
             <main className="flex-grow bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6">

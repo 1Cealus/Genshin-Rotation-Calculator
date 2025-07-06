@@ -200,7 +200,8 @@ export const Sidebar = ({
     onExport, onImport, onClearAll,
     isFetchingProfile, handleFetchEnkaData,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet
+    onSavePreset, onLoadPreset, onDeletePreset, 
+    onSaveToMastersheet, onShowCreateLeaderboardModal
 }) => {
     const [showPresets, setShowPresets] = useState(false);
     const [uid, setUid] = useState('');
@@ -287,9 +288,14 @@ export const Sidebar = ({
                     </button>
                 </div>
                 {isAdmin && (
-                    <button onClick={onSaveToMastersheet} className="btn btn-primary w-full mt-2">
-                        Publish to Mastersheet
-                    </button>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                        <button onClick={onSaveToMastersheet} className="btn btn-primary">
+                            Publish to Mastersheet
+                        </button>
+                        <button onClick={onShowCreateLeaderboardModal} className="btn btn-primary">
+                            Create Leaderboard
+                        </button>
+                    </div>
                 )}
             </div>
         </aside>

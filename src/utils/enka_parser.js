@@ -47,7 +47,7 @@ const findKeyById = (id, dataObject) => {
 };
 
 
-export const parseEnkaData = (enkaData, gameData) => {
+export const parseEnkaData = (enkaData, gameData, designatedCharacterKey = null) => {
     if (!enkaData.avatarInfoList) {
         throw new Error('Invalid Enka.Network data: avatarInfoList is missing.');
     }
@@ -58,12 +58,16 @@ export const parseEnkaData = (enkaData, gameData) => {
         const charId = avatar.avatarId;
         const charKey = Object.keys(gameData.characterData).find(key => gameData.characterData[key].id === charId);
 
+        // If a designated character is specified, skip all others
+        if (designatedCharacterKey && charKey !== designatedCharacterKey) {
+            return;
+        }
+
         if (!charKey) {
             return;
         }
 
         const characterBuild = {
-            // --- FIX: Hardcode Level and Talents to predictable defaults as requested. ---
             level: 90,
             talentLevels: {
                 na: 10,
@@ -111,11 +115,19 @@ export const parseEnkaData = (enkaData, gameData) => {
                     }
 
                     const setKey = findKeyByName(setName, gameData.artifactSets);
-                    characterBuild.artifacts[slotKey] = {
+                    
+                    const pieceData = {
                         set: setKey || 'no_set',
                         mainStat: mainStatKey,
                         substats: substats,
                     };
+
+                    // Add circlet main stat specifically for CV calculation
+                    if (slotKey === 'circlet') {
+                        characterBuild.circletMainStat = mainStatKey;
+                    }
+
+                    characterBuild.artifacts[slotKey] = pieceData;
                 }
             }
         });

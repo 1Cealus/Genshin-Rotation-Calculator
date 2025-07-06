@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { 
+import {
     getAuth,
     onAuthStateChanged,
     signOut,
@@ -7,17 +7,20 @@ import {
     signInWithEmailAndPassword,
     signInAnonymously
 } from "firebase/auth";
-import { 
+import {
     getFirestore,
     doc,
     setDoc,
     onSnapshot,
     collection,
     getDocs,
+    getDoc,
     deleteDoc,
     query,
     orderBy,
-    addDoc
+    addDoc,
+    Timestamp,
+    updateDoc
 } from "firebase/firestore";
 
 
@@ -30,12 +33,12 @@ const auth = isFirebaseConfigValid ? getAuth(app) : null;
 const db = isFirebaseConfigValid ? getFirestore(app) : null;
 
 
-export { 
-    app, 
-    auth, 
-    db, 
-    onAuthStateChanged, 
-    signOut, 
+export {
+    app,
+    auth,
+    db,
+    onAuthStateChanged,
+    signOut,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInAnonymously,
@@ -44,8 +47,11 @@ export {
     onSnapshot,
     collection,
     getDocs,
+    getDoc,
     deleteDoc,
     query,
     orderBy,
-    addDoc
+    addDoc,
+    Timestamp,
+    updateDoc
 };
