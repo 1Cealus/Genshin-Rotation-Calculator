@@ -142,7 +142,7 @@ export const CalculatorPage = ({
     const { characterData } = gameData;
 
     return (
-        <div className="flex max-w-[1700px] mx-auto p-4 gap-6 h-[calc(100vh-65px)]">
+        <div className="w-full flex max-w-[1700px] mx-auto p-4 gap-6 h-[calc(100vh-65px)]">
             <div className="w-full max-w-sm lg:max-w-md flex-shrink-0">
                 <Sidebar
                     user={user} 

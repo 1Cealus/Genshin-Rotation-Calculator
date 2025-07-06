@@ -19,24 +19,33 @@ import { MastersheetPage } from './pages/MastersheetPage';
 import { LeaderboardListPage } from './pages/LeaderboardListPage.jsx';
 import { LeaderboardDetailPage } from './pages/LeaderboardDetailPage.jsx';
 
-const LoadingScreen = ({ text }) => (<div className="bg-brand-dark min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
+const LoadingScreen = ({ text }) => (<div className="bg-slate-900 min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
 
 export default function App() {
     const {
-        // State
-        user, sessionUid, isAdmin, isUserLoading, isGameDataLoading, isLoggingIn,
-        gameData, newsItems,
-        page, showLoginModal, showCreateLeaderboardModal,
-        currentLeaderboardId, activeTeam,
-        
-        // UI State Setters
-        setPage, setShowLoginModal, setShowCreateLeaderboardModal, setCurrentLeaderboardId,
-        
-        // Handlers
-        handleUidLogin, handleSignOut, handleCreateLeaderboard,
-        
-        // Pass-through props for pages
-        ...props
+        // Destructure all the state and handlers from the context
+        user,
+        sessionUid,
+        isAdmin,
+        isUserLoading,
+        isGameDataLoading,
+        isLoggingIn,
+        gameData,
+        newsItems,
+        page,
+        setPage,
+        showLoginModal,
+        setShowLoginModal,
+        showCreateLeaderboardModal,
+        setShowCreateLeaderboardModal,
+        currentLeaderboardId,
+        setCurrentLeaderboardId,
+        activeTeam,
+        handleUidLogin,
+        handleSignOut,
+        handleCreateLeaderboard,
+        onLoadPreset,
+        ...props 
     } = useAppContext();
 
     if (isUserLoading || isGameDataLoading) {
@@ -45,22 +54,38 @@ export default function App() {
 
     const renderPage = () => {
         switch(page) {
-            case 'home': return <HomePage setPage={setPage} newsItems={newsItems} />;
-            case 'calculator': return gameData && <CalculatorPage {...props} />;
-            case 'admin': return isAdmin && <AdminPage newsItems={newsItems}/>;
-            case 'characters': return gameData && <CharacterArchivePage gameData={gameData} />;
-            case 'weapons': return gameData && <WeaponArchivePage gameData={gameData} />;
-            case 'artifacts': return gameData && <ArtifactArchivePage gameData={gameData} />;
-            case 'enemies': return gameData && <EnemyArchivePage gameData={gameData} />;
-            case 'mastersheet': return gameData && <MastersheetPage gameData={gameData} onLoadPreset={props.handleLoadPreset} setPage={setPage} isAdmin={isAdmin} />;
-            case 'leaderboards': return gameData && <LeaderboardListPage gameData={gameData} setPage={setPage} setLeaderboardId={setCurrentLeaderboardId} />;
-            case 'leaderboardDetail': return gameData && <LeaderboardDetailPage leaderboardId={currentLeaderboardId} gameData={gameData} setPage={setPage} user={user} isAdmin={isAdmin} />;
-            default: return <HomePage setPage={setPage} newsItems={newsItems} />;
+            case 'home':
+                return <HomePage setPage={setPage} newsItems={newsItems} />;
+
+            case 'profile':
+                return user ? ( <ProfilePage user={user} /> ) : <LoginPage onLogin={handleUidLogin} />;
+
+            case 'calculator':
+                return gameData && <CalculatorPage user={user} gameData={gameData} activeTeam={activeTeam} {...props} />;
+            
+            case 'admin':
+                return isAdmin && <AdminPage newsItems={newsItems}/>;
+            case 'characters':
+                return gameData && <CharacterArchivePage gameData={gameData} />;
+            case 'weapons':
+                return gameData && <WeaponArchivePage gameData={gameData} />;
+            case 'artifacts':
+                return gameData && <ArtifactArchivePage gameData={gameData} />;
+            case 'enemies':
+                return gameData && <EnemyArchivePage gameData={gameData} />;
+            case 'mastersheet':
+                return gameData && <MastersheetPage gameData={gameData} onLoadPreset={onLoadPreset} setPage={setPage} isAdmin={isAdmin} />;
+            case 'leaderboards':
+                return gameData && <LeaderboardListPage gameData={gameData} setPage={setPage} setLeaderboardId={setCurrentLeaderboardId} />;
+            case 'leaderboardDetail':
+                return gameData && <LeaderboardDetailPage leaderboardId={currentLeaderboardId} gameData={gameData} setPage={setPage} user={user} isAdmin={isAdmin} />;
+            default:
+                return <HomePage setPage={setPage} newsItems={newsItems} />;
         }
     }
 
     return (
-        <div className="bg-brand-dark min-h-screen text-white flex h-screen overflow-hidden">
+        <div className="bg-slate-900 min-h-screen text-white flex h-screen overflow-hidden">
             <input type="file" ref={props.importFileRef} className="hidden" accept=".json" onChange={props.handleImportData} />
             {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onUidLogin={handleUidLogin} isLoggingIn={isLoggingIn} />}
             {showCreateLeaderboardModal && isAdmin && (
