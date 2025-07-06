@@ -51,9 +51,31 @@ export function calculateTotalStats(state, gameData, charKey) {
     for (const key in weapon.stats) { addBonus(key, weapon.stats[key]); }
     const weaponRefinement = weapon.refinements[characterBuild.weapon.refinement - 1] || {};
     for (const stat in weaponRefinement) { if (typeof weaponRefinement[stat] === 'number') { addBonus(stat, weaponRefinement[stat]); } }
+    
     Object.values(characterBuild.artifacts).forEach(piece => {
         if (piece) {
-            if (piece.mainStat && mainStatValues[piece.mainStat]) { addBonus(piece.mainStat, mainStatValues[piece.mainStat].value); }
+            // --- START: CORRECTED MAIN STAT LOOKUP ---
+            if (piece.mainStat) {
+                let value = mainStatValues[piece.mainStat]?.value;
+
+                // If the initial lookup fails, try the alternative key format.
+                if (value === undefined) {
+                    const key = piece.mainStat;
+                    if (key === 'atk_flat') value = mainStatValues['flat_atk']?.value;
+                    else if (key === 'flat_atk') value = mainStatValues['atk_flat']?.value;
+                    else if (key === 'hp_flat') value = mainStatValues['flat_hp']?.value;
+                    else if (key === 'flat_hp') value = mainStatValues['hp_flat']?.value;
+                    else if (key === 'def_flat') value = mainStatValues['def_flat']?.value;
+                    else if (key === 'def_flat') value = mainStatValues['def_flat']?.value;
+                }
+
+                // If a value was found (either from the original or alternate key), add it.
+                if (value !== undefined) {
+                    addBonus(piece.mainStat, value);
+                }
+            }
+            // --- END: CORRECTED MAIN STAT LOOKUP ---
+            
             if (piece.substats) { for (const key in piece.substats) addBonus(key, piece.substats[key]); }
         }
     });
