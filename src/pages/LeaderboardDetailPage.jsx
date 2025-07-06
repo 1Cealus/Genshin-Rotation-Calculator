@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { db, doc, getDoc, collection, addDoc, getDocs, query, orderBy, Timestamp, updateDoc } from '../firebase';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { db, doc, getDoc, collection, addDoc, getDocs, query, orderBy, Timestamp, updateDoc, where } from '../firebase';
 import { useModal } from '../context/ModalContext';
 import { calculateFinalDamage } from '../logic/damage_formula.js';
 import { calculateTotalStats } from '../logic/stat_calculator.js';
@@ -7,14 +7,30 @@ import { parseEnkaData } from '../utils/enka_parser.js';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { EditLeaderboardModal } from '../components/EditLeaderboardModal.jsx';
 
-export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, isAdmin }) => {
+export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, isAdmin, submitToAllRelevantLeaderboards }) => {
     const [leaderboard, setLeaderboard] = useState(null);
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uid, setUid] = useState('');
     const [showEditModal, setShowEditModal] = useState(false);
+    const [highlightedEntryId, setHighlightedEntryId] = useState(null);
     const { showModal } = useModal();
+    const entriesContainerRef = useRef(null);
+
+    const filteredEntries = useMemo(() => {
+        if (!uid.trim()) return entries;
+        return entries.filter(entry => entry.uid.startsWith(uid));
+    }, [uid, entries]);
+
+    useEffect(() => {
+        if (highlightedEntryId && entriesContainerRef.current) {
+            const element = entriesContainerRef.current.querySelector(`#entry-${highlightedEntryId}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [highlightedEntryId, entries]);
 
     const fetchLeaderboardData = async () => {
         setLoading(true);
@@ -33,6 +49,7 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
             const entriesSnap = await getDocs(q);
             const entriesData = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             setEntries(entriesData);
+            return entriesData;
 
         } catch (error) {
             console.error("Error fetching leaderboard details:", error);
@@ -57,105 +74,43 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
         fetchLeaderboardData();
     };
     
-    const handleSubmission = async () => {
+    const handleLookupAndSubmit = async () => {
         if (!uid || !/^\d{9}$/.test(uid)) {
-            showModal({ title: 'Invalid UID', message: 'Please enter a valid 9-digit Genshin Impact UID.' });
+            showModal({ title: 'Invalid UID', message: 'Please enter a valid 9-digit UID.' });
             return;
         }
+        
+        setHighlightedEntryId(null);
+        
+        const exactMatch = entries.find(entry => entry.uid === uid);
+        if (exactMatch) {
+            const rank = entries.findIndex(e => e.id === exactMatch.id) + 1;
+            showModal({ title: "Player Found", message: `UID ${uid} is already on this leaderboard at rank #${rank}.` });
+            setHighlightedEntryId(exactMatch.id);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const response = await fetch(`/api/uid/${uid}/`);
             if (!response.ok) throw new Error(`Failed to fetch data for UID ${uid}. Make sure your characters are in your in-game showcase.`);
+            
             const enkaData = await response.json();
-            
-            const { designatedCharacterKey, rotationDuration } = leaderboard;
-            const designatedCharInfo = gameData.characterData[designatedCharacterKey];
-            const parsedBuilds = parseEnkaData(enkaData, gameData, designatedCharacterKey);
+            const allParsedBuilds = parseEnkaData(enkaData, gameData);
 
-            if (!parsedBuilds[designatedCharacterKey]) {
-                throw new Error(`The character required for this leaderboard (${designatedCharInfo.name}) was not found in your showcase.`);
-            }
-
-            const finalCharacterBuilds = { ...leaderboard.characterBuilds, ...parsedBuilds };
-            const designatedCharacterBuild = finalCharacterBuilds[designatedCharacterKey];
-
-            let totalDamage = 0;
-            leaderboard.rotation.forEach(action => {
-                if (action.characterKey !== designatedCharacterKey) return;
-                
-                const state = {
-                    character: designatedCharInfo,
-                    characterBuild: designatedCharacterBuild,
-                    weapon: gameData.weaponData[designatedCharacterBuild.weapon?.key || 'no_weapon'],
-                    talent: designatedCharInfo?.talents?.[action.talentKey],
-                    activeBuffs: action.config.activeBuffs,
-                    reactionType: action.config.reactionType,
-                    infusion: action.config.infusion,
-                    enemy: gameData.enemyData[leaderboard.enemyKey],
-                    team: leaderboard.team,
-                    characterBuilds: finalCharacterBuilds,
-                    characterKey: action.characterKey,
-                    talentKey: action.talentKey,
-                    config: action.config,
-                };
-                const result = calculateFinalDamage(state, gameData);
-                totalDamage += (result.avg || 0) * (action.repeat || 1);
-            });
-
-            const dps = totalDamage / (rotationDuration || 1);
-
-            const statCalcState = {
-                character: designatedCharInfo,
-                characterBuild: designatedCharacterBuild,
-                weapon: gameData.weaponData[designatedCharacterBuild.weapon?.key || 'no_weapon'],
-                team: leaderboard.team,
-                characterBuilds: finalCharacterBuilds,
-                activeBuffs: {},
-            };
-            const finalStats = calculateTotalStats(statCalcState, gameData, designatedCharacterKey);
-            
-            // Corrected CV Calculation:
-            // 1. Start with total Crit Rate and Crit Damage from stats.
-            // 2. Subtract character's base stats (5% CR, 50% CD).
-            // 3. Subtract character's ascension stats, if they are crit.
-            let artifactCR = finalStats.crit_rate - 0.05;
-            let artifactCD = finalStats.crit_dmg - 0.50;
-
-            if (designatedCharInfo.ascension_stat === 'crit_rate') {
-                artifactCR -= designatedCharInfo.ascension_value;
-            } else if (designatedCharInfo.ascension_stat === 'crit_dmg') {
-                artifactCD -= designatedCharInfo.ascension_value;
+            if (!allParsedBuilds[leaderboard.designatedCharacterKey]) {
+                throw new Error(`The required character (${gameData.characterData[leaderboard.designatedCharacterKey].name}) was not found in your showcase.`);
             }
             
-            let critValue = (artifactCR * 2 + artifactCD) * 100;
-            if (['crit_rate', 'crit_dmg'].includes(designatedCharacterBuild.circletMainStat)) {
-                critValue += 62.2;
+            showModal({ title: 'Submitting Score...', message: 'Calculating and submitting your score to all relevant leaderboards. This may take a moment.' });
+            await submitToAllRelevantLeaderboards(uid, allParsedBuilds);
+            
+            const newEntries = await fetchLeaderboardData();
+            const newEntry = newEntries.find(e => e.uid === uid);
+            if (newEntry) {
+                setHighlightedEntryId(newEntry.id);
             }
-
-            const appId = 'default-app-id';
-            const entriesRef = collection(db, `artifacts/${appId}/public/data/leaderboards`, leaderboardId, 'entries');
-            await addDoc(entriesRef, {
-                uid,
-                totalDamage,
-                dps,
-                stats: {
-                    atk: finalStats.atk,
-                    hp: finalStats.hp,
-                    def: finalStats.def,
-                    crit_rate: finalStats.crit_rate,
-                    crit_dmg: finalStats.crit_dmg,
-                    er: finalStats.er,
-                    em: finalStats.em,
-                    cv: critValue,
-                },
-                characterBuild: designatedCharacterBuild,
-                submittedAt: Timestamp.now(),
-            });
-
-            showModal({ title: "Success!", message: `Your DPS of ${dps.toLocaleString()} has been submitted!`});
-            fetchLeaderboardData();
-            setUid('');
-
+            
         } catch (error) {
             showModal({ title: 'Submission Error', message: error.message });
             console.error(error);
@@ -230,23 +185,23 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
             </div>
             
             <div className="bg-slate-800/60 p-4 rounded-lg border border-slate-700 mb-8">
-                <h3 className="text-xl font-bold text-white mb-3">Submit Your Score</h3>
+                <h3 className="text-xl font-bold text-white mb-3">Lookup / Submit Score</h3>
                  <div className="flex gap-2">
                     <input
                         type="text"
                         value={uid}
                         onChange={(e) => setUid(e.target.value)}
-                        placeholder="Enter your 9-digit UID..."
+                        placeholder="Enter a 9-digit UID to search or submit..."
                         disabled={isSubmitting}
                         className="flex-grow"
                     />
-                    <button onClick={handleSubmission} className="btn btn-primary" disabled={isSubmitting}>
-                        {isSubmitting ? 'Submitting...' : 'Submit'}
+                    <button onClick={handleLookupAndSubmit} className="btn btn-primary" disabled={isSubmitting}>
+                        {isSubmitting ? 'Processing...' : 'Search'}
                     </button>
                 </div>
             </div>
 
-            <div>
+            <div ref={entriesContainerRef}>
                 <h2 className="text-2xl font-bold text-white mb-4">Rankings</h2>
                 <div className="space-y-1">
                     <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs text-slate-400 font-bold uppercase">
@@ -258,13 +213,15 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
                         <div className="col-span-1 text-right">ER</div>
                         <div className="col-span-3 text-right">DPS</div>
                     </div>
-                    {entries.map((entry, index) => (
-                        <div key={entry.id} className="grid grid-cols-12 gap-4 items-center bg-slate-800 p-4 rounded-lg text-sm">
-                            <div className="col-span-1 font-bold text-slate-400">#{index + 1}</div>
+                    {filteredEntries.map((entry, index) => (
+                        <div key={entry.id} id={`entry-${entry.id}`} className={`grid grid-cols-12 gap-4 items-center bg-slate-800 p-4 rounded-lg text-sm transition-all duration-300 ${entry.id === highlightedEntryId ? 'ring-2 ring-cyan-400' : ''}`}>
+                            <div className="col-span-1 font-bold text-slate-400">#{entries.findIndex(e => e.id === entry.id) + 1}</div>
                             <div className="col-span-11 md:col-span-2 font-semibold text-white">UID: {entry.uid}</div>
                             <div className="col-span-6 md:col-span-3">
                                 <span className="font-mono text-white">{(entry.stats.crit_rate * 100).toFixed(1)} / {(entry.stats.crit_dmg * 100).toFixed(1)}</span>
-                                <span className="ml-2 text-xs text-cyan-400 font-bold">{entry.stats.cv.toFixed(1)}cv</span>
+                                {entry.stats.cv && (
+                                    <span className="ml-2 text-xs text-cyan-400 font-bold">{entry.stats.cv.toFixed(1)}cv</span>
+                                )}
                             </div>
                             <div className="col-span-3 md:col-span-1 text-right font-mono text-white">{Math.round(entry.stats.atk)}</div>
                             <div className="col-span-3 md:col-span-1 text-right font-mono text-white">{Math.round(entry.stats.hp)}</div>
@@ -272,6 +229,7 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
                             <div className="col-span-6 md:col-span-3 text-right text-xl font-bold text-cyan-300">{Math.round(entry.dps).toLocaleString()}</div>
                         </div>
                     ))}
+                    {filteredEntries.length === 0 && entries.length > 0 && <p className="text-center text-slate-400 py-8">No rankings found for that UID.</p>}
                     {entries.length === 0 && <p className="text-center text-slate-400 py-8">No entries yet. Be the first!</p>}
                  </div>
             </div>

@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { CharacterCard } from '../components/CharacterCard';
 import { BuildEditorModal } from '../components/BuildEditorModal';
 

@@ -20,7 +20,8 @@ import {
     orderBy,
     addDoc,
     Timestamp,
-    updateDoc
+    updateDoc,
+    where
 } from "firebase/firestore";
 
 
@@ -53,5 +54,6 @@ export {
     orderBy,
     addDoc,
     Timestamp,
-    updateDoc
+    updateDoc,
+    where
 };

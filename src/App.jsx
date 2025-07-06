@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAppContext } from './hooks/useAppContext';
 
 // Component Imports
@@ -18,6 +18,7 @@ import { EnemyArchivePage } from './pages/EnemyArchivePage';
 import { MastersheetPage } from './pages/MastersheetPage';
 import { LeaderboardListPage } from './pages/LeaderboardListPage.jsx';
 import { LeaderboardDetailPage } from './pages/LeaderboardDetailPage.jsx';
+import { ProfilePage } from './pages/ProfilePage.jsx';
 
 const LoadingScreen = ({ text }) => (<div className="bg-slate-900 min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
 
@@ -37,16 +38,22 @@ export default function App() {
         showLoginModal,
         setShowLoginModal,
         showCreateLeaderboardModal,
-        setShowCreateLeaderboardModal,
-        currentLeaderboardId,
         setCurrentLeaderboardId,
         activeTeam,
         handleUidLogin,
         handleSignOut,
         handleCreateLeaderboard,
         onLoadPreset,
+        submitToAllRelevantLeaderboards,
         ...props 
     } = useAppContext();
+
+    useEffect(() => {
+        if (page === 'profile' && user?.isAnonymous) {
+            setShowLoginModal(true);
+        }
+    }, [page, user, setShowLoginModal]);
+
 
     if (isUserLoading || isGameDataLoading) {
         return <LoadingScreen text="Loading..." />;
@@ -58,10 +65,21 @@ export default function App() {
                 return <HomePage setPage={setPage} newsItems={newsItems} />;
 
             case 'profile':
-                return user ? ( <ProfilePage user={user} /> ) : <LoginPage onLogin={handleUidLogin} />;
+                if (user?.isAnonymous) {
+                    return <HomePage setPage={setPage} newsItems={newsItems} />;
+                }
+                return <ProfilePage {...props} gameData={gameData} />;
 
             case 'calculator':
-                return gameData && <CalculatorPage user={user} gameData={gameData} activeTeam={activeTeam} {...props} />;
+                return gameData && <CalculatorPage 
+                                        user={user} 
+                                        gameData={gameData} 
+                                        activeTeam={activeTeam} 
+                                        isAdmin={isAdmin}
+                                        onSaveToMastersheet={props.onSaveToMastersheet}
+                                        setShowCreateLeaderboardModal={props.setShowCreateLeaderboardModal}
+                                        {...props} 
+                                    />;
             
             case 'admin':
                 return isAdmin && <AdminPage newsItems={newsItems}/>;
@@ -78,7 +96,14 @@ export default function App() {
             case 'leaderboards':
                 return gameData && <LeaderboardListPage gameData={gameData} setPage={setPage} setLeaderboardId={setCurrentLeaderboardId} />;
             case 'leaderboardDetail':
-                return gameData && <LeaderboardDetailPage leaderboardId={currentLeaderboardId} gameData={gameData} setPage={setPage} user={user} isAdmin={isAdmin} />;
+                return gameData && <LeaderboardDetailPage 
+                                        leaderboardId={props.currentLeaderboardId} 
+                                        gameData={gameData} 
+                                        setPage={setPage} 
+                                        user={user} 
+                                        isAdmin={isAdmin} 
+                                        submitToAllRelevantLeaderboards={submitToAllRelevantLeaderboards}
+                                    />;
             default:
                 return <HomePage setPage={setPage} newsItems={newsItems} />;
         }
@@ -91,7 +116,7 @@ export default function App() {
             {showCreateLeaderboardModal && isAdmin && (
                 <CreateLeaderboardModal
                     isOpen={showCreateLeaderboardModal}
-                    onClose={() => setShowCreateLeaderboardModal(false)}
+                    onClose={() => props.setShowCreateLeaderboardModal(false)}
                     onCreate={handleCreateLeaderboard}
                     team={activeTeam}
                     gameData={gameData}

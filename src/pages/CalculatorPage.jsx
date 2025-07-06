@@ -116,7 +116,7 @@ export const CalculatorPage = ({
     enemyKey, setEnemyKey, user, gameData, isAdmin, isFetchingProfile,
     onExport, onImport, onClearAll,
     presetName, setPresetName, savedPresets,
-    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet, onShowCreateLeaderboardModal,
+    onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet,
     rotation, rotationDuration, setRotationDuration,
     mainView, setMainView,
     activeActionTray, setActiveActionTray,
@@ -130,7 +130,7 @@ export const CalculatorPage = ({
     handleActionRepeatChange, handleDuplicateAction,
     handleActionSelect, handleBulkApplyBuffs,
     updateCharacterBuild, handleUpdateAction, handleRemoveAction,
-    characterBuilds,
+    characterBuilds, setShowCreateLeaderboardModal
 }) => {
     const editingAction = useMemo(() => rotation.find(a => a.id === editingActionId), [rotation, editingActionId]);
     const scrollContainerRef = useRef(null);
@@ -156,7 +156,7 @@ export const CalculatorPage = ({
                     handleFetchEnkaData={handleFetchEnkaData}
                     isAdmin={isAdmin}
                     onSaveToMastersheet={onSaveToMastersheet}
-                    onShowCreateLeaderboardModal={onShowCreateLeaderboardModal}
+                    onShowCreateLeaderboardModal={() => setShowCreateLeaderboardModal(true)}
                 />
             </div>
             <main className="flex-grow bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6">

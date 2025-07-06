@@ -197,7 +197,7 @@ const PresetManager = ({ savedPresets = [], onLoadPreset, onDeletePreset, onSave
 export const Sidebar = ({ 
     team, handleTeamChange, setEditingBuildFor,
     enemyKey, setEnemyKey, user, gameData, isAdmin,
-    onExport, onImport, onClearAll,
+    onExport, onImport, onClearAll, onShowCreateLeaderboardModal,
     isFetchingProfile, handleFetchEnkaData,
     presetName, setPresetName, savedPresets,
     onSavePreset, onLoadPreset, onDeletePreset, onSaveToMastersheet
@@ -212,7 +212,6 @@ export const Sidebar = ({
 
     return (
         <aside className="bg-[var(--color-bg-secondary)] p-6 rounded-2xl border border-[var(--color-border-primary)] flex flex-col gap-6 h-full">
-            {/* UID Fetcher Section */}
             <div className="flex-shrink-0">
                  <h2 className="text-2xl font-bold text-white mb-3">Profile Import</h2>
                  <div className="p-3 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border-primary)] space-y-2">
@@ -287,9 +286,14 @@ export const Sidebar = ({
                     </button>
                 </div>
                 {isAdmin && (
-                    <button onClick={onSaveToMastersheet} className="btn btn-primary w-full mt-2">
-                        Publish to Mastersheet
-                    </button>
+                    <div className="grid grid-cols-1 gap-2 mt-2">
+                        <button onClick={onShowCreateLeaderboardModal} className="btn btn-secondary w-full">
+                            Create Leaderboard
+                        </button>
+                        <button onClick={onSaveToMastersheet} className="btn btn-primary w-full">
+                            Publish to Mastersheet
+                        </button>
+                    </div>
                 )}
             </div>
         </aside>

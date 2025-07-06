@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, addDoc, Timestamp, updateDoc, signInAnonymously } from '../firebase';
+import { db, auth, onAuthStateChanged, signOut, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, addDoc, Timestamp, updateDoc, signInAnonymously, query, where } from '../firebase';
 import { isFirebaseConfigValid } from '../config.js';
 import { useModal } from '../context/ModalContext.jsx';
 
@@ -7,6 +7,7 @@ import { parseNotation } from '../utils/parseNotation.js';
 import { calculateFinalDamage } from '../logic/damage_formula.js';
 import { parseEnkaData } from '../utils/enka_parser.js';
 import { getGameData } from '../data/loader.js';
+import { calculateTotalStats } from '../logic/stat_calculator.js';
 
 const ADMIN_UID = "RHK4HK166oe3kiCz3iEnybYcest1";
 const initialTeam = ['', '', '', ''];
@@ -32,7 +33,6 @@ const createDefaultBuild = (charKey, characterData) => {
 export const useAppContext = () => {
     const { showModal } = useModal();
     
-    // STATE MANAGEMENT
     const [page, setPage] = useState('home');
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showCreateLeaderboardModal, setShowCreateLeaderboardModal] = useState(false);
@@ -59,7 +59,6 @@ export const useAppContext = () => {
     
     const [enkaCache, setEnkaCache] = useState({});
     
-    // UI STATE
     const [mainView, setMainView] = useState('rotation');
     const [activeActionTray, setActiveActionTray] = useState(null);
     const [editingActionId, setEditingActionId] = useState(null);
@@ -69,7 +68,6 @@ export const useAppContext = () => {
     const importFileRef = useRef(null);
     const [currentLeaderboardId, setCurrentLeaderboardId] = useState(null);
 
-    // EFFECTS
     useEffect(() => {
         if (!isFirebaseConfigValid) {
             showModal({ title: 'Configuration Error', message: 'Firebase configuration is missing or invalid.' });
@@ -90,7 +88,6 @@ export const useAppContext = () => {
         return () => unsubNews();
     }, []);
 
-    // --- FIX: ROBUST AUTHENTICATION FLOW ---
     useEffect(() => {
         if (!auth) {
             setIsUserLoading(false);
@@ -98,16 +95,13 @@ export const useAppContext = () => {
         };
         const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
-                // If we have a user (anonymous or real), set it and stop loading.
                 setUser(currentUser);
                 setIsAdmin(currentUser.uid === ADMIN_UID && !currentUser.isAnonymous);
                 setIsUserLoading(false);
             } else {
-                // If there's no user, try to sign in. The listener will run again
-                // once this is complete. Don't set loading to false here.
                 signInAnonymously(auth).catch(error => {
                     console.error("Anonymous sign-in failed", error);
-                    setIsUserLoading(false); // Stop loading on error to prevent being stuck.
+                    setIsUserLoading(false); 
                 });
             }
         });
@@ -153,48 +147,32 @@ export const useAppContext = () => {
         return () => clearTimeout(debounceSave);
     }, [team, characterBuilds, enemyKey, rotation, rotationDuration, presetName, user, isUserLoading, isGameDataLoading]);
 
-    // This block is now more defensive to prevent crashes.
     const calculationResults = useMemo(() => {
         if (!gameData || !characterBuilds || !rotation) return [];
         return rotation.map(action => {
             const charInfo = gameData.characterData[action.characterKey];
             const charBuild = characterBuilds[action.characterKey];
             
-            if (!charInfo || !charBuild) {
-                return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0 }, formula: null, repeat: action.repeat || 1 };
-            }
+            if (!charInfo || !charBuild) return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0 }, formula: null, repeat: action.repeat || 1 };
             
             const talentInfo = charInfo.talents?.[action.talentKey];
             const weaponInfo = gameData.weaponData[charBuild.weapon?.key || 'no_weapon'];
 
-            if (!talentInfo || !weaponInfo) {
-                return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0 }, formula: null, repeat: action.repeat || 1 };
-            }
+            if (!talentInfo || !weaponInfo) return { actionId: action.id, damage: { avg: 0, crit: 0, nonCrit: 0 }, formula: null, repeat: action.repeat || 1 };
             
             const state = {
-                character: charInfo,
-                characterBuild: charBuild,
-                weapon: weaponInfo,
-                talent: talentInfo,
-                activeBuffs: action.config.activeBuffs,
-                reactionType: action.config.reactionType,
-                infusion: action.config.infusion,
-                enemy: gameData.enemyData[enemyKey],
-                team,
-                characterBuilds,
-                characterKey: action.characterKey,
-                talentKey: action.talentKey,
-                config: action.config
+                character: charInfo, characterBuild: charBuild, weapon: weaponInfo,
+                talent: talentInfo, activeBuffs: action.config.activeBuffs,
+                reactionType: action.config.reactionType, infusion: action.config.infusion,
+                enemy: gameData.enemyData[enemyKey], team, characterBuilds,
+                characterKey: action.characterKey, talentKey: action.talentKey, config: action.config
             };
             
             const result = calculateFinalDamage(state, gameData);
             return {
-                actionId: action.id,
-                charKey: action.characterKey,
-                talentKey: action.talentKey,
+                actionId: action.id, charKey: action.characterKey, talentKey: action.talentKey,
                 damage: { avg: result.avg, crit: result.crit, nonCrit: result.nonCrit, damageType: result.damageType },
-                formula: result.formula,
-                repeat: action.repeat || 1
+                formula: result.formula, repeat: action.repeat || 1
             };
         });
     }, [rotation, characterBuilds, enemyKey, team, gameData]);
@@ -207,30 +185,104 @@ export const useAppContext = () => {
     
     const fetchAndCacheProfile = async (uid) => {
         const cached = enkaCache[uid];
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.data;
-        }
-
+        if (cached && cached.expiresAt > Date.now()) return cached.data;
         setIsFetchingProfile(true);
         try {
-            const response = await fetch(`/api/uid/${uid}/`, {
-                headers: { 'User-Agent': 'Genshin-Rotation-Calculator/1.0.1' }
-            });
+            const response = await fetch(`/api/uid/${uid}/`, { headers: { 'User-Agent': 'Genshin-Rotation-Calculator/1.0.1' } });
             if (!response.ok) throw new Error(`Failed to fetch data for UID ${uid}. Make sure your characters are in your in-game showcase.`);
             const enkaData = await response.json();
-            
             const ttl = enkaData.ttl || 60;
-            setEnkaCache(prev => ({
-                ...prev,
-                [uid]: { data: enkaData, expiresAt: Date.now() + ttl * 1000 }
-            }));
-            
+            setEnkaCache(prev => ({ ...prev, [uid]: { data: enkaData, expiresAt: Date.now() + ttl * 1000 } }));
             return enkaData;
         } catch (error) {
             showModal({ title: "Profile Sync Failed", message: error.message });
             return null;
         } finally {
             setIsFetchingProfile(false);
+        }
+    };
+
+    const submitToAllRelevantLeaderboards = async (uid, userBuilds) => {
+        if (!gameData) return;
+        try {
+            const appId = 'default-app-id';
+            const leaderboardsRef = collection(db, `artifacts/${appId}/public/data/leaderboards`);
+            const leaderboardsSnapshot = await getDocs(leaderboardsRef);
+            const leaderboards = leaderboardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            let submittedCount = 0;
+            let updatedCount = 0;
+
+            const submissionPromises = leaderboards.map(async (lb) => {
+                const designatedCharKey = lb.designatedCharacterKey;
+                if (!userBuilds[designatedCharKey]) return;
+
+                const designatedCharacterBuild = userBuilds[designatedCharKey];
+                const designatedCharInfo = gameData.characterData[designatedCharKey];
+                
+                let totalDamage = 0;
+                lb.rotation.forEach(action => {
+                    if (action.characterKey !== designatedCharKey) return;
+                    
+                    const state = {
+                        character: designatedCharInfo, characterBuild: designatedCharacterBuild,
+                        weapon: gameData.weaponData[designatedCharacterBuild.weapon?.key || 'no_weapon'],
+                        talent: designatedCharInfo?.talents?.[action.talentKey],
+                        activeBuffs: action.config.activeBuffs, reactionType: action.config.reactionType,
+                        infusion: action.config.infusion, enemy: gameData.enemyData[lb.enemyKey],
+                        team: lb.team, characterBuilds: { ...lb.characterBuilds, [designatedCharKey]: designatedCharacterBuild },
+                        characterKey: action.characterKey, talentKey: action.talentKey, config: action.config,
+                    };
+                    const result = calculateFinalDamage(state, gameData);
+                    totalDamage += (result.avg || 0) * (action.repeat || 1);
+                });
+
+                const dps = totalDamage / (lb.rotationDuration || 1);
+
+                const statCalcState = { character: designatedCharInfo, characterBuild: designatedCharacterBuild, weapon: gameData.weaponData[designatedCharacterBuild.weapon?.key || 'no_weapon'], team: lb.team, characterBuilds: { ...lb.characterBuilds, [designatedCharKey]: designatedCharacterBuild }, activeBuffs: {} };
+                const finalStats = calculateTotalStats(statCalcState, gameData, designatedCharKey);
+                
+                const weaponInfo = gameData.weaponData[designatedCharacterBuild.weapon.key];
+                const weaponCR = weaponInfo?.stats?.crit_rate || 0;
+                const weaponCD = weaponInfo?.stats?.crit_dmg || 0;
+                const ascensionCR = designatedCharInfo.ascension_stat === 'crit_rate' ? designatedCharInfo.ascension_value : 0;
+                const ascensionCD = designatedCharInfo.ascension_stat === 'crit_dmg' ? designatedCharInfo.ascension_value : 0;
+                const artifactCR = finalStats.crit_rate - 0.05 - ascensionCR - weaponCR;
+                const artifactCD = finalStats.crit_dmg - 0.50 - ascensionCD - weaponCD;
+                const critValue = (artifactCR * 2 * 100) + (artifactCD * 100);
+
+                const submissionData = {
+                    uid, totalDamage, dps,
+                    stats: { atk: finalStats.atk, hp: finalStats.hp, def: finalStats.def, crit_rate: finalStats.crit_rate, crit_dmg: finalStats.crit_dmg, er: finalStats.er, em: finalStats.em, cv: critValue },
+                    characterBuild: designatedCharacterBuild, submittedAt: Timestamp.now(),
+                };
+
+                const entriesRef = collection(db, `artifacts/${appId}/public/data/leaderboards`, lb.id, 'entries');
+                const q = query(entriesRef, where("uid", "==", uid));
+                const existingEntries = await getDocs(q);
+
+                if (existingEntries.empty) {
+                    await addDoc(entriesRef, submissionData);
+                    submittedCount++;
+                } else {
+                    const existingDoc = existingEntries.docs[0];
+                    if (submissionData.dps > existingDoc.data().dps) {
+                        await updateDoc(existingDoc.ref, submissionData);
+                        updatedCount++;
+                    }
+                }
+            });
+
+            await Promise.all(submissionPromises);
+
+            if (submittedCount > 0 || updatedCount > 0) {
+                showModal({ title: "Leaderboards Updated!", message: `Submitted ${submittedCount} new score(s) and updated ${updatedCount} existing score(s).` });
+            } else {
+                showModal({ title: "No New Submissions", message: `Your scores were not higher than your existing entries.` });
+            }
+        } catch (error) {
+            console.error("Error submitting to leaderboards:", error);
+            showModal({ title: "Leaderboard Error", message: "An error occurred while automatically submitting scores." });
         }
     };
 
@@ -242,9 +294,10 @@ export const useAppContext = () => {
             const parsedBuilds = parseEnkaData(profile, gameData);
             if (Object.keys(parsedBuilds).length > 0) {
                  setCharacterBuilds(prev => ({ ...prev, ...parsedBuilds }));
-                 showModal({ title: "Builds Loaded!", message: "All available character builds from your profile have been imported." });
+                 showModal({ title: "Builds Loaded!", message: "Your character builds have been imported. Now checking leaderboards..." });
+                 await submitToAllRelevantLeaderboards(uid, parsedBuilds);
             } else {
-                 showModal({ title: "No Characters Found", message: "Could not find any supported characters in the showcase." });
+                 showModal({ title: "No Characters Found", message: "Could not find any supported characters in your showcase." });
             }
         }
         setIsLoggingIn(false);
@@ -308,11 +361,8 @@ export const useAppContext = () => {
         setRotation(rot => rot.map(action => {
             if (selectedActionIds.includes(action.id)) {
                 const newBuffs = { ...action.config.activeBuffs };
-                if (buffState.active) {
-                    newBuffs[buffKey] = { ...newBuffs[buffKey], ...buffState };
-                } else {
-                    delete newBuffs[buffKey];
-                }
+                if (buffState.active) newBuffs[buffKey] = { ...newBuffs[buffKey], ...buffState };
+                else delete newBuffs[buffKey];
                 return { ...action, config: { ...action.config, activeBuffs: newBuffs } };
             }
             return action;
@@ -343,8 +393,7 @@ export const useAppContext = () => {
     const handleDeletePreset = async (id) => {
         if (!user || user.isAnonymous) return;
         showModal({
-            title: 'Delete Preset?',
-            message: `Are you sure you want to permanently delete this preset?`,
+            title: 'Delete Preset?', message: `Are you sure you want to permanently delete this preset?`,
             type: 'confirm',
             onConfirm: async () => {
                 const appId = 'default-app-id';
@@ -356,14 +405,11 @@ export const useAppContext = () => {
 
     const handleClearAll = () => {
         showModal({
-            title: "Clear Workspace?",
-            message: "This will reset your team, builds, and rotation. Are you sure?",
+            title: "Clear Workspace?", message: "This will reset your team, builds, and rotation. Are you sure?",
             type: 'confirm',
             onConfirm: () => {
-                setTeam(initialTeam);
-                setCharacterBuilds({});
-                setRotation([]);
-                setRotationDuration(20);
+                setTeam(initialTeam); setCharacterBuilds({});
+                setRotation([]); setRotationDuration(20);
                 setPresetName("New Team");
             }
         })
@@ -380,9 +426,7 @@ export const useAppContext = () => {
         URL.revokeObjectURL(url);
     };
 
-    const handleImportClick = () => {
-        importFileRef.current.click();
-    };
+    const handleImportClick = () => { importFileRef.current.click(); };
 
     const handleImportData = (event) => {
         const file = event.target.files[0];
@@ -403,20 +447,13 @@ export const useAppContext = () => {
             }
         };
         reader.readAsText(file);
-        event.target.value = null; // Reset file input
+        event.target.value = null;
     };
     
     const handleCreateLeaderboard = async ({ name, designatedCharacterKey, description }) => {
         const data = {
-            name,
-            designatedCharacterKey,
-            description,
-            team,
-            enemyKey,
-            rotation,
-            rotationDuration,
-            characterBuilds,
-            createdAt: Timestamp.now(),
+            name, designatedCharacterKey, description, team, enemyKey,
+            rotation, rotationDuration, characterBuilds, createdAt: Timestamp.now(),
         };
         const appId = 'default-app-id';
         await addDoc(collection(db, `artifacts/${appId}/public/data/leaderboards`), data);
@@ -426,16 +463,7 @@ export const useAppContext = () => {
     const handleSaveToMastersheet = async () => {
         if (!isAdmin || !presetName.trim()) return;
         const { totalDamage, dps } = rotationSummary;
-        const data = {
-            name: presetName,
-            dps,
-            totalDamage,
-            rotationDuration,
-            team,
-            enemyKey,
-            characterBuilds,
-            rotation,
-        };
+        const data = { name: presetName, dps, totalDamage, rotationDuration, team, enemyKey, characterBuilds, rotation };
         const appId = 'default-app-id';
         await addDoc(collection(db, `artifacts/${appId}/public/data/mastersheet`), data);
         showModal({ title: 'Published!', message: 'Build has been published to the Mastersheet.' });
@@ -445,45 +473,27 @@ export const useAppContext = () => {
     
     const analyticsData = useMemo(() => {
         if (!gameData || !calculationResults) return {};
-        const characterMetrics = {};
-        const elementMetrics = {};
-        const sourceMetrics = {};
-
+        const characterMetrics = {}, elementMetrics = {}, sourceMetrics = {};
         calculationResults.forEach(result => {
             if (!result || !result.charKey) return;
             const charInfo = gameData.characterData[result.charKey];
             if (!charInfo) return;
-
             const totalActionDamage = (result.damage.avg || 0) * result.repeat;
             const actionDps = totalActionDamage / rotationDuration;
-
-            if (!characterMetrics[charInfo.name]) {
-                characterMetrics[charInfo.name] = { total: 0, dps: 0, element: charInfo.element };
-            }
+            if (!characterMetrics[charInfo.name]) characterMetrics[charInfo.name] = { total: 0, dps: 0, element: charInfo.element };
             characterMetrics[charInfo.name].total += totalActionDamage;
             characterMetrics[charInfo.name].dps += actionDps;
-
             const damageType = result.damage.damageType || charInfo.element;
-            if (!elementMetrics[damageType]) {
-                elementMetrics[damageType] = { total: 0, dps: 0 };
-            }
+            if (!elementMetrics[damageType]) elementMetrics[damageType] = { total: 0, dps: 0 };
             elementMetrics[damageType].total += totalActionDamage;
             elementMetrics[damageType].dps += actionDps;
-
             const talentInfo = charInfo.talents[result.talentKey];
             const sourceName = `${charInfo.name} - ${talentInfo.name}`;
-            if (!sourceMetrics[sourceName]) {
-                sourceMetrics[sourceName] = { total: 0, dps: 0, element: damageType, name: sourceName };
-            }
+            if (!sourceMetrics[sourceName]) sourceMetrics[sourceName] = { total: 0, dps: 0, element: damageType, name: sourceName };
             sourceMetrics[sourceName].total += totalActionDamage;
             sourceMetrics[sourceName].dps += actionDps;
         });
-
-        return {
-            characterMetrics,
-            elementMetrics,
-            sourceMetrics: Object.values(sourceMetrics),
-        };
+        return { characterMetrics, elementMetrics, sourceMetrics: Object.values(sourceMetrics) };
     }, [calculationResults, rotationDuration, gameData]);
 
     return {
@@ -507,8 +517,8 @@ export const useAppContext = () => {
         selectedActionIds, setSelectedActionIds,
         showBulkEdit, setShowBulkEdit,
         importFileRef,
-        onUidLogin: handleUidLogin,
-        onSignOut: handleSignOut,
+        handleUidLogin,
+        handleSignOut,
         handleTeamChange,
         updateCharacterBuild,
         handleAddFromNotation,
@@ -525,8 +535,9 @@ export const useAppContext = () => {
         onClearAll: handleClearAll,
         onExport: handleExportData,
         onImport: handleImportData,
-        onCreateLeaderboard: handleCreateLeaderboard,
+        handleCreateLeaderboard,
         onSaveToMastersheet: handleSaveToMastersheet,
+        submitToAllRelevantLeaderboards,
         calculationResults,
         rotationSummary,
         activeTeam,
