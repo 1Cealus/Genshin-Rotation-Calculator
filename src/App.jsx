@@ -1,11 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppContext } from './hooks/useAppContext';
 
 // Component Imports
 import { NavigationSidebar } from './components/NavigationSidebar';
 import { LoginModal } from './components/Login';
 import { CreateLeaderboardModal } from './components/CreateLeaderboardModal.jsx';
-import { EditLeaderboardModal } from './components/EditLeaderboardModal.jsx';
 
 // Page Imports
 import { HomePage } from './pages/HomePage';
@@ -22,15 +21,27 @@ import { ProfilePage } from './pages/ProfilePage.jsx';
 
 const LoadingScreen = ({ text }) => (<div className="bg-slate-900 min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
 
+const LogViewer = ({ logs, setLogs }) => {
+    if (logs.length === 0) return null;
+    return (
+        <div className="fixed bottom-4 right-4 w-full max-w-lg h-64 bg-black/80 backdrop-blur-sm border-2 border-slate-700 rounded-lg shadow-2xl z-50 flex flex-col">
+            <div className="flex justify-between items-center p-2 border-b border-slate-600">
+                <h4 className="font-bold text-sm text-yellow-300">Live Logs</h4>
+                <button onClick={() => setLogs([])} className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">Clear</button>
+            </div>
+            <div className="overflow-y-auto p-2 text-xs font-mono space-y-1">
+                {logs.map((log, i) => <div key={i}>{log}</div>)}
+            </div>
+        </div>
+    )
+}
+
 export default function App() {
     const {
-        // Destructure all the state and handlers from the context
         user,
-        sessionUid,
         isAdmin,
         isUserLoading,
         isGameDataLoading,
-        isLoggingIn,
         gameData,
         newsItems,
         page,
@@ -40,20 +51,28 @@ export default function App() {
         showCreateLeaderboardModal,
         setCurrentLeaderboardId,
         activeTeam,
-        handleUidLogin,
         handleSignOut,
         handleCreateLeaderboard,
         onLoadPreset,
         submitToAllRelevantLeaderboards,
+        // Profile props
+        profiles,
+        activeProfile,
+        setActiveProfileUid,
+        handleProfileLookup,
+        handleCloseProfile,
+        isFetchingProfile,
+        // Logging props
+        logs,
+        setLogs,
         ...props 
     } = useAppContext();
 
     useEffect(() => {
         if (page === 'profile' && user?.isAnonymous) {
-            setShowLoginModal(true);
+            // Logic for anonymous users if needed
         }
     }, [page, user, setShowLoginModal]);
-
 
     if (isUserLoading || isGameDataLoading) {
         return <LoadingScreen text="Loading..." />;
@@ -63,13 +82,17 @@ export default function App() {
         switch(page) {
             case 'home':
                 return <HomePage setPage={setPage} newsItems={newsItems} />;
-
             case 'profile':
-                if (user?.isAnonymous) {
-                    return <HomePage setPage={setPage} newsItems={newsItems} />;
-                }
-                return <ProfilePage {...props} gameData={gameData} />;
-
+                return <ProfilePage 
+                            profiles={profiles}
+                            activeProfile={activeProfile}
+                            setActiveProfileUid={setActiveProfileUid}
+                            handleProfileLookup={handleProfileLookup}
+                            handleCloseProfile={handleCloseProfile}
+                            isFetchingProfile={isFetchingProfile}
+                            gameData={gameData}
+                            updateCharacterBuild={props.updateCharacterBuild}
+                        />;
             case 'calculator':
                 return gameData && <CalculatorPage 
                                         user={user} 
@@ -80,7 +103,6 @@ export default function App() {
                                         setShowCreateLeaderboardModal={props.setShowCreateLeaderboardModal}
                                         {...props} 
                                     />;
-            
             case 'admin':
                 return isAdmin && <AdminPage newsItems={newsItems}/>;
             case 'characters':
@@ -102,7 +124,9 @@ export default function App() {
                                         setPage={setPage} 
                                         user={user} 
                                         isAdmin={isAdmin} 
+                                        activeProfileUid={props.activeProfileUid}
                                         submitToAllRelevantLeaderboards={submitToAllRelevantLeaderboards}
+                                        handleProfileLookup={handleProfileLookup}
                                     />;
             default:
                 return <HomePage setPage={setPage} newsItems={newsItems} />;
@@ -112,7 +136,7 @@ export default function App() {
     return (
         <div className="bg-slate-900 min-h-screen text-white flex h-screen overflow-hidden">
             <input type="file" ref={props.importFileRef} className="hidden" accept=".json" onChange={props.handleImportData} />
-            {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onUidLogin={handleUidLogin} isLoggingIn={isLoggingIn} />}
+            {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} onUidLogin={handleProfileLookup} isLoggingIn={props.isLoggingIn} />}
             {showCreateLeaderboardModal && isAdmin && (
                 <CreateLeaderboardModal
                     isOpen={showCreateLeaderboardModal}
@@ -125,7 +149,7 @@ export default function App() {
             
             <NavigationSidebar 
                 user={user}
-                sessionUid={sessionUid}
+                activeProfile={activeProfile}
                 isAdmin={isAdmin}
                 page={page}
                 setPage={setPage}
@@ -136,6 +160,8 @@ export default function App() {
             <main className="flex-grow flex-1 flex flex-col overflow-y-auto">
                 {renderPage()}
             </main>
+            
+            <LogViewer logs={logs} setLogs={setLogs} />
         </div>
     );
 }

@@ -7,7 +7,7 @@ import { parseEnkaData } from '../utils/enka_parser.js';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { EditLeaderboardModal } from '../components/EditLeaderboardModal.jsx';
 
-export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, isAdmin, submitToAllRelevantLeaderboards }) => {
+export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, isAdmin, activeProfileUid, submitToAllRelevantLeaderboards, handleProfileLookup }) => {
     const [leaderboard, setLeaderboard] = useState(null);
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,6 +17,18 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
     const [highlightedEntryId, setHighlightedEntryId] = useState(null);
     const { showModal } = useModal();
     const entriesContainerRef = useRef(null);
+    
+    useEffect(() => {
+        if(activeProfileUid){
+           const activeEntry = entries.find(entry => entry.uid === activeProfileUid);
+            if (activeEntry) {
+                setHighlightedEntryId(activeEntry.id);
+            } else {
+                setHighlightedEntryId(null);
+            }
+        }
+    }, [activeProfileUid, entries]);
+
 
     const filteredEntries = useMemo(() => {
         if (!uid.trim()) return entries;
@@ -66,6 +78,10 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
         }
         fetchLeaderboardData();
     }, [leaderboardId]);
+    
+     useEffect(() => {
+        setUid(activeProfileUid || '');
+    }, [activeProfileUid]);
 
     const handleUpdateDescription = async (id, data) => {
         const appId = 'default-app-id';
@@ -80,42 +96,23 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
             return;
         }
         
-        setHighlightedEntryId(null);
-        
+        await handleProfileLookup(uid);
+
         const exactMatch = entries.find(entry => entry.uid === uid);
         if (exactMatch) {
             const rank = entries.findIndex(e => e.id === exactMatch.id) + 1;
-            showModal({ title: "Player Found", message: `UID ${uid} is already on this leaderboard at rank #${rank}.` });
+            showModal({ title: "Player Found", message: `UID ${uid} is already on this leaderboard at rank #${rank}. Highlighted.` });
             setHighlightedEntryId(exactMatch.id);
             return;
         }
-
-        setIsSubmitting(true);
-        try {
-            const response = await fetch(`/api/uid/${uid}/`);
-            if (!response.ok) throw new Error(`Failed to fetch data for UID ${uid}. Make sure your characters are in your in-game showcase.`);
+        
+        showModal({ title: 'Submitting Score...', message: 'Calculating and submitting your score to all relevant leaderboards. This may take a moment.' });
+        await submitToAllRelevantLeaderboards(uid, null); // Pass null to signify it should use the fetched profile
             
-            const enkaData = await response.json();
-            const allParsedBuilds = parseEnkaData(enkaData, gameData);
-
-            if (!allParsedBuilds[leaderboard.designatedCharacterKey]) {
-                throw new Error(`The required character (${gameData.characterData[leaderboard.designatedCharacterKey].name}) was not found in your showcase.`);
-            }
-            
-            showModal({ title: 'Submitting Score...', message: 'Calculating and submitting your score to all relevant leaderboards. This may take a moment.' });
-            await submitToAllRelevantLeaderboards(uid, allParsedBuilds);
-            
-            const newEntries = await fetchLeaderboardData();
-            const newEntry = newEntries.find(e => e.uid === uid);
-            if (newEntry) {
-                setHighlightedEntryId(newEntry.id);
-            }
-            
-        } catch (error) {
-            showModal({ title: 'Submission Error', message: error.message });
-            console.error(error);
-        } finally {
-            setIsSubmitting(false);
+        const newEntries = await fetchLeaderboardData();
+        const newEntry = newEntries.find(e => e.uid === uid);
+        if (newEntry) {
+            setHighlightedEntryId(newEntry.id);
         }
     };
 
@@ -196,7 +193,7 @@ export const LeaderboardDetailPage = ({ leaderboardId, gameData, setPage, user, 
                         className="flex-grow"
                     />
                     <button onClick={handleLookupAndSubmit} className="btn btn-primary" disabled={isSubmitting}>
-                        {isSubmitting ? 'Processing...' : 'Search'}
+                        {isSubmitting ? 'Processing...' : 'Search / Submit'}
                     </button>
                 </div>
             </div>

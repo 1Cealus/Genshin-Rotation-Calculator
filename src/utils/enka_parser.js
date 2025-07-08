@@ -35,118 +35,124 @@ const equipTypeMap = {
 
 const findKeyByName = (name, dataObject) => {
     if (!name || !dataObject) return null;
-    const lowerCaseName = name.toLowerCase();
+    const lowerCaseName = String(name).toLowerCase();
     const entry = Object.entries(dataObject).find(([, value]) => value.name && value.name.toLowerCase() === lowerCaseName);
     return entry ? entry[0] : null;
 };
 
 const findKeyById = (id, dataObject) => {
     if (!id || !dataObject) return null;
-    const entry = Object.entries(dataObject).find(([, value]) => value.id === id);
+    // Use loose equality to handle potential type mismatch (string vs number)
+    const entry = Object.entries(dataObject).find(([, value]) => value.id == id);
     return entry ? entry[0] : null;
 };
 
 
 export const parseEnkaData = (enkaData, gameData, designatedCharacterKey = null) => {
-    if (!enkaData.avatarInfoList) {
-        throw new Error('Invalid Enka.Network data: avatarInfoList is missing.');
+    const logs = [];
+    if (!enkaData || !enkaData.avatarInfoList) {
+        logs.push('Parser Error: Invalid or empty Enka.Network data received.');
+        return { builds: {}, logs };
     }
 
     const newCharacterBuilds = {};
 
+    logs.push(`Found ${enkaData.avatarInfoList.length} character(s) in showcase.`);
+
     enkaData.avatarInfoList.forEach(avatar => {
-        const charId = avatar.avatarId;
-        const charKey = Object.keys(gameData.characterData).find(key => gameData.characterData[key].id === charId);
+        try {
+            const charId = avatar.avatarId;
+            // --- NEW LOGGING ---
+            logs.push(`Processing Avatar ID: ${charId}`);
 
-        // If a designated character is specified, skip all others
-        if (designatedCharacterKey && charKey !== designatedCharacterKey) {
-            return;
-        }
+            const charKey = Object.keys(gameData.characterData).find(key => gameData.characterData[key].id == charId);
 
-        if (!charKey) {
-            return;
-        }
+            if (designatedCharacterKey && charKey !== designatedCharacterKey) {
+                return;
+            }
 
-        const characterBuild = {
-            level: 90,
-            talentLevels: {
-                na: 10,
-                skill: 10,
-                burst: 10
-            },
-            
-            constellation: avatar.talentIdList?.length || 0,
-            weapon: {
-                key: 'no_weapon',
-                refinement: 1
-            },
-            artifacts: {},
-        };
+            if (!charKey) {
+                logs.push(`-> Skipping. ID ${charId} not found in local game data.`);
+                return;
+            }
 
-        avatar.equipList.forEach(item => {
-            if (item.flat.itemType === 'ITEM_WEAPON') {
-                const weaponId = item.itemId;
-                const weaponKey = findKeyById(weaponId, gameData.weaponData);
-                characterBuild.weapon = {
-                    key: weaponKey || 'no_weapon',
-                    refinement: (item.weapon.affixMap ? Object.values(item.weapon.affixMap)[0] : 0) + 1,
-                };
-            } else if (item.flat.itemType === 'ITEM_RELIQUARY') {
-                const slotKey = equipTypeMap[item.flat.equipType];
-                if (slotKey) {
-                    const mainStatKey = statMap[item.flat.reliquaryMainstat.mainPropId] || 'unknown';
-                    const substats = {};
-                    if (item.flat.reliquarySubstats) {
-                        item.flat.reliquarySubstats.forEach(sub => {
-                            const subStatKey = statMap[sub.appendPropId];
-                            if (subStatKey) {
-                                substats[subStatKey] = ['hp_percent', 'atk_percent', 'def_percent', 'crit_rate', 'crit_dmg', 'er', 'healing_bonus'].includes(subStatKey) ?
-                                    sub.statValue / 100 :
-                                    sub.statValue;
-                            }
-                        });
-                    }
+            logs.push(`-> Match found: ${gameData.characterData[charKey].name}. Parsing build...`);
 
-                    const setNameHash = item.flat.setNameTextMapHash;
-                    let setName = gameData.textMap[setNameHash];
+            const characterBuild = {
+                level: 90,
+                talentLevels: { na: 10, skill: 10, burst: 10 },
+                constellation: avatar.talentIdList?.length || 0,
+                weapon: { key: 'no_weapon', refinement: 1 },
+                artifacts: {},
+            };
 
-                    if (setName && typeof setName === 'object' && setName.name) {
-                        setName = setName.name;
-                    }
-
-                    const setKey = findKeyByName(setName, gameData.artifactSets);
-                    
-                    const pieceData = {
-                        set: setKey || 'no_set',
-                        mainStat: mainStatKey,
-                        substats: substats,
+            avatar.equipList.forEach(item => {
+                if (item.flat.itemType === 'ITEM_WEAPON') {
+                    const weaponId = item.itemId;
+                    const weaponKey = findKeyById(weaponId, gameData.weaponData);
+                    characterBuild.weapon = {
+                        key: weaponKey || 'no_weapon',
+                        refinement: (item.weapon.affixMap ? Object.values(item.weapon.affixMap)[0] : 0) + 1,
                     };
+                } else if (item.flat.itemType === 'ITEM_RELIQUARY') {
+                    const slotKey = equipTypeMap[item.flat.equipType];
+                    if (slotKey) {
+                        const mainStatKey = statMap[item.flat.reliquaryMainstat.mainPropId] || 'unknown';
+                        const substats = {};
+                        if (item.flat.reliquarySubstats) {
+                            item.flat.reliquarySubstats.forEach(sub => {
+                                const subStatKey = statMap[sub.appendPropId];
+                                if (subStatKey) {
+                                    substats[subStatKey] = ['hp_percent', 'atk_percent', 'def_percent', 'crit_rate', 'crit_dmg', 'er', 'healing_bonus'].includes(subStatKey) ?
+                                        sub.statValue / 100 :
+                                        sub.statValue;
+                                }
+                            });
+                        }
 
-                    // Add circlet main stat specifically for CV calculation
-                    if (slotKey === 'circlet') {
-                        characterBuild.circletMainStat = mainStatKey;
+                        const setNameHash = item.flat.setNameTextMapHash;
+                        let setName = gameData.textMap[setNameHash];
+                        if (setName && typeof setName === 'object') {
+                            setName = setName.en || setName.name || Object.values(setName)[0];
+                        }
+                        
+                        const setKey = findKeyByName(setName, gameData.artifactSets);
+                        
+                        const pieceData = {
+                            set: setKey || 'no_set',
+                            mainStat: mainStatKey,
+                            substats: substats,
+                        };
+
+                        if (slotKey === 'circlet') {
+                            characterBuild.circletMainStat = mainStatKey;
+                        }
+
+                        characterBuild.artifacts[slotKey] = pieceData;
                     }
-
-                    characterBuild.artifacts[slotKey] = pieceData;
                 }
-            }
-        });
+            });
 
-        const setCounts = {};
-        Object.values(characterBuild.artifacts).forEach(piece => {
-            if (piece && piece.set) {
-                setCounts[piece.set] = (setCounts[piece.set] || 0) + 1;
-            }
-        });
+            const setCounts = {};
+            Object.values(characterBuild.artifacts).forEach(piece => {
+                if (piece && piece.set) {
+                    setCounts[piece.set] = (setCounts[piece.set] || 0) + 1;
+                }
+            });
 
-        const fourPiece = Object.keys(setCounts).find(key => setCounts[key] >= 4);
-        const twoPiece = Object.keys(setCounts).find(key => setCounts[key] >= 2 && key !== fourPiece);
+            const fourPiece = Object.keys(setCounts).find(key => setCounts[key] >= 4);
+            const twoPiece = Object.keys(setCounts).find(key => setCounts[key] >= 2 && key !== fourPiece);
 
-        characterBuild.artifacts.set_4pc = fourPiece || 'no_set';
-        characterBuild.artifacts.set_2pc = twoPiece || 'no_set';
+            characterBuild.artifacts.set_4pc = fourPiece || 'no_set';
+            characterBuild.artifacts.set_2pc = twoPiece || 'no_set';
 
-        newCharacterBuilds[charKey] = characterBuild;
+            newCharacterBuilds[charKey] = characterBuild;
+            logs.push(`-> Successfully parsed ${gameData.characterData[charKey].name}.`);
+
+        } catch (error) {
+            logs.push(`-> ERROR parsing avatar ID ${avatar?.avatarId}: ${error.message}`);
+        }
     });
 
-    return newCharacterBuilds;
+    return { builds: newCharacterBuilds, logs };
 };

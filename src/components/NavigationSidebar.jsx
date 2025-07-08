@@ -14,7 +14,7 @@ const NavItem = ({ icon, text, isCollapsed, isActive, onClick }) => (
     </button>
 );
 
-export const NavigationSidebar = ({ user, isAdmin, page, setPage, onLoginClick, onSignOut }) => {
+export const NavigationSidebar = ({ user, activeProfile, isAdmin, page, setPage, onLoginClick, onSignOut }) => {
     const [isCollapsed, setIsCollapsed] = useState(true);
 
     const navItems = [
@@ -66,7 +66,7 @@ export const NavigationSidebar = ({ user, isAdmin, page, setPage, onLoginClick, 
                     ) : (
                          <div className={`p-2 rounded-lg ${isCollapsed ? '' : 'bg-[var(--color-bg-primary)]'}`}>
                              {!isCollapsed && (
-                                <div className="text-xs text-center text-white truncate mb-2">{user.email}</div>
+                                <div className="text-xs text-center text-white truncate mb-2">{activeProfile?.name || user.email}</div>
                              )}
                             <NavItem
                                 icon={<IconLogout />}

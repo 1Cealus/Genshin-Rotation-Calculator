@@ -33,13 +33,12 @@ const createDefaultBuild = (charKey, characterData) => {
 export const useAppContext = () => {
     const { showModal } = useModal();
     
+    // --- STATE HOOKS ---
     const [page, setPage] = useState('home');
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showCreateLeaderboardModal, setShowCreateLeaderboardModal] = useState(false);
     
     const [user, setUser] = useState(null);
-    const [userData, setUserData] = useState(null);
-    const [sessionUid, setSessionUid] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isUserLoading, setIsUserLoading] = useState(true);
     const [isGameDataLoading, setIsGameDataLoading] = useState(true);
@@ -49,14 +48,10 @@ export const useAppContext = () => {
     const [gameData, setGameData] = useState(null);
     const [newsItems, setNewsItems] = useState([]);
     
-    const [team, setTeam] = useState(initialTeam);
-    const [characterBuilds, setCharacterBuilds] = useState({});
-    const [enemyKey, setEnemyKey] = useState('ruin_guard');
-    const [rotation, setRotation] = useState([]);
-    const [rotationDuration, setRotationDuration] = useState(20);
-    const [presetName, setPresetName] = useState("My First Team");
-    const [savedPresets, setSavedPresets] = useState([]);
+    const [profiles, setProfiles] = useState([]);
+    const [activeProfileUid, setActiveProfileUid] = useState(null);
     
+    const [savedPresets, setSavedPresets] = useState([]);
     const [enkaCache, setEnkaCache] = useState({});
     
     const [mainView, setMainView] = useState('rotation');
@@ -67,9 +62,118 @@ export const useAppContext = () => {
     const [showBulkEdit, setShowBulkEdit] = useState(false);
     const importFileRef = useRef(null);
     const [currentLeaderboardId, setCurrentLeaderboardId] = useState(null);
+    const [logs, setLogs] = useState([]);
 
+    // --- HELPER FUNCTIONS ---
+    const logMessage = (message, data) => {
+        const entry = `[${new Date().toLocaleTimeString()}] ${message}`;
+        console.log(message, data);
+        setLogs(prev => [data ? `${entry} | Data: ${JSON.stringify(data)}` : entry, ...prev]);
+    };
+
+    const fetchAndCacheProfile = async (uid) => {
+        const cached = enkaCache[uid];
+        if (cached && cached.expiresAt > Date.now()) {
+            logMessage('Profile Fetch: Found in cache.', { uid });
+            return cached.data;
+        }
+        setIsFetchingProfile(true);
+        logMessage('Profile Fetch: Not in cache, fetching from API...', { uid });
+        try {
+            const response = await fetch(`/api/uid/${uid}/`, { headers: { 'User-Agent': 'Genshin-Rotation-Calculator/1.0.1' } });
+            if (!response.ok) throw new Error(`Failed to fetch data for UID ${uid}. Make sure your characters are in your in-game showcase.`);
+            const enkaData = await response.json();
+            logMessage('Profile Fetch: API data received.', { uid });
+            const ttl = enkaData.ttl || 60;
+            setEnkaCache(prev => ({ ...prev, [uid]: { data: enkaData, expiresAt: Date.now() + ttl * 1000 } }));
+            return enkaData;
+        } catch (error) {
+            logMessage('Profile Fetch: ERROR', { uid, error: error.message });
+            showModal({ title: "Profile Sync Failed", message: error.message });
+            return null;
+        } finally {
+            setIsFetchingProfile(false);
+        }
+    };
+    
+    const handleProfileLookup = async (uid) => {
+        logMessage(`Profile Lookup: Initiated for UID: ${uid}`);
+        if (profiles.some(p => p.uid === uid)) {
+            logMessage('Profile Lookup: Profile already exists, switching to it.');
+            setActiveProfileUid(uid);
+            return;
+        }
+        setIsLoggingIn(true);
+        const profileData = await fetchAndCacheProfile(uid);
+        if (profileData) {
+            logMessage('Profile Lookup: Enka data fetched.', { name: profileData.playerInfo.nickname });
+            const { builds, logs: parserLogs } = parseEnkaData(profileData, gameData);
+            
+            // FIX: Ensure parserLogs is an array before looping
+            if(Array.isArray(parserLogs)) {
+                parserLogs.forEach(log => logMessage(`[Parser] ${log}`));
+            }
+
+            // FIX: Ensure builds is an object before using Object.keys
+            logMessage('Profile Lookup: Parser finished.', { buildCount: Object.keys(builds || {}).length });
+
+            if (builds && Object.keys(builds).length > 0) {
+                const newProfile = {
+                    uid,
+                    name: profileData.playerInfo.nickname,
+                    team: initialTeam,
+                    characterBuilds: builds,
+                    enemyKey: 'ruin_guard',
+                    rotation: [],
+                    rotationDuration: 20,
+                    presetName: `${profileData.playerInfo.nickname}'s Team`
+                };
+                logMessage('Profile Lookup: Creating new profile object.', newProfile);
+                setProfiles(prev => [newProfile, ...prev]);
+                setActiveProfileUid(uid);
+                showModal({ title: "Profile Loaded!", message: `${profileData.playerInfo.nickname}'s builds have been imported.` });
+            } else {
+                 showModal({ title: "No Characters Found", message: "Could not find any supported characters in your showcase. Check logs for details." });
+            }
+        }
+        setIsLoggingIn(false);
+    };
+
+    // --- MEMOIZED DERIVED STATE ---
+    const activeProfile = useMemo(() => {
+        if (!Array.isArray(profiles)) return null;
+        return profiles.find(p => p.uid === activeProfileUid);
+    }, [profiles, activeProfileUid]);
+    
+    const team = useMemo(() => activeProfile?.team || initialTeam, [activeProfile]);
+    const characterBuilds = useMemo(() => activeProfile?.characterBuilds || {}, [activeProfile]);
+    const enemyKey = useMemo(() => activeProfile?.enemyKey || 'ruin_guard', [activeProfile]);
+    const rotation = useMemo(() => activeProfile?.rotation || [], [activeProfile]);
+    const rotationDuration = useMemo(() => activeProfile?.rotationDuration || 20, [activeProfile]);
+    const presetName = useMemo(() => activeProfile?.presetName || "New Team", [activeProfile]);
+    
+    // --- STATE UPDATE HANDLERS ---
+    const updateActiveProfileData = (key, value) => {
+        if (!activeProfileUid) return;
+        setProfiles(prevProfiles =>
+            prevProfiles.map(p =>
+                p.uid === activeProfileUid ? { ...p, [key]: value } : p
+            )
+        );
+    };
+    
+    const setTeam = (newTeam) => updateActiveProfileData('team', newTeam);
+    const setCharacterBuilds = (newBuilds) => updateActiveProfileData('characterBuilds', typeof newBuilds === 'function' ? newBuilds(activeProfile.characterBuilds) : newBuilds);
+    const setEnemyKey = (newEnemyKey) => updateActiveProfileData('enemyKey', newEnemyKey);
+    const setRotation = (newRotation) => updateActiveProfileData('rotation', typeof newRotation === 'function' ? newRotation(activeProfile.rotation) : newRotation);
+    const setRotationDuration = (newDuration) => updateActiveProfileData('rotationDuration', newDuration);
+    const setPresetName = (newName) => updateActiveProfileData('presetName', newName);
+    
+    // --- SIDE EFFECTS (useEffect) ---
     useEffect(() => {
+        logMessage('App loading: Fetching game data.');
         if (!isFirebaseConfigValid) {
+            logMessage('App loading: Firebase config is invalid.');
             showModal({ title: 'Configuration Error', message: 'Firebase configuration is missing or invalid.' });
             setIsGameDataLoading(false);
             return;
@@ -77,8 +181,10 @@ export const useAppContext = () => {
         getGameData(db).then(data => {
             setGameData(data);
             setIsGameDataLoading(false);
+            logMessage('App loading: Game data fetched successfully.');
         }).catch(err => {
             setIsGameDataLoading(false);
+            logMessage('App loading: CRITICAL ERROR fetching game data.', err);
             showModal({ title: 'Data Loading Error', message: 'A critical error occurred while loading game data.' });
         });
         const unsubNews = onSnapshot(collection(db, 'news'), (snapshot) => {
@@ -89,17 +195,22 @@ export const useAppContext = () => {
     }, []);
 
     useEffect(() => {
+        logMessage('Auth: Setting up auth state listener.');
         if (!auth) {
+            logMessage('Auth: Firebase auth is not initialized.');
             setIsUserLoading(false);
             return;
         };
         const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
+                logMessage('Auth: User state changed.', { uid: currentUser.uid, isAnonymous: currentUser.isAnonymous });
                 setUser(currentUser);
                 setIsAdmin(currentUser.uid === ADMIN_UID && !currentUser.isAnonymous);
                 setIsUserLoading(false);
             } else {
+                 logMessage('Auth: No current user, attempting anonymous sign-in.');
                 signInAnonymously(auth).catch(error => {
+                    logMessage('Auth: Anonymous sign-in failed.', error);
                     console.error("Anonymous sign-in failed", error);
                     setIsUserLoading(false); 
                 });
@@ -109,46 +220,80 @@ export const useAppContext = () => {
     }, []);
 
     useEffect(() => {
-        if (user && !user.isAnonymous && db) {
+        if (user && db) {
+            logMessage('Data Sync: User detected, setting up data snapshot listener.', { uid: user.uid });
             const appId = 'default-app-id';
-            const mainDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/calculatorData`, 'main');
-            const presetsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/presets`);
+            let userDocRef;
 
-            const unsubMain = onSnapshot(mainDocRef, docSnap => {
-                const d = docSnap.data() || {};
-                setUserData(d);
-                setTeam(d.team || initialTeam);
-                setCharacterBuilds(d.characterBuilds || {});
-                setEnemyKey(d.enemyKey || 'ruin_guard');
-                setRotation(d.rotation || []);
-                setRotationDuration(d.rotationDuration || 20);
-                setPresetName(d.presetName || "My First Team");
+            if (user.isAnonymous) {
+                userDocRef = doc(db, `artifacts/${appId}/anonymous_users/${user.uid}/calculatorData`, 'main');
+            } else {
+                userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/calculatorData`, 'main');
+            }
+
+            const unsubMain = onSnapshot(userDocRef, docSnap => {
+                const data = docSnap.data() || {};
+                logMessage('Data Sync: Received data from Firestore.', data);
+                const userProfile = {
+                    uid: user.uid,
+                    name: user.isAnonymous ? "Guest" : (user.email || "My Profile"),
+                    team: data.team || initialTeam,
+                    characterBuilds: data.characterBuilds || {},
+                    enemyKey: data.enemyKey || 'ruin_guard',
+                    rotation: data.rotation || [],
+                    rotationDuration: data.rotationDuration || 20,
+                    presetName: data.presetName || "My First Team"
+                };
+                
+                setProfiles(prev => {
+                    const existing = prev.find(p => p.uid === user.uid);
+                    if (existing) {
+                        return prev.map(p => p.uid === user.uid ? {...p, ...userProfile} : p);
+                    }
+                    return [userProfile, ...prev.filter(p => p.uid !== user.uid)];
+                });
+
+                if (!activeProfileUid) {
+                    logMessage('Data Sync: Setting active profile to current user.', { uid: user.uid });
+                    setActiveProfileUid(user.uid);
+                }
             });
 
-            const unsubPresets = onSnapshot(presetsColRef, snapshot => {
-                setSavedPresets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            });
+            if (!user.isAnonymous) {
+                const presetsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/presets`);
+                const unsubPresets = onSnapshot(presetsColRef, snapshot => {
+                    setSavedPresets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                 return () => { unsubMain(); unsubPresets(); };
+            }
 
-            return () => { unsubMain(); unsubPresets(); };
+            return () => unsubMain();
         } else {
-            setUserData(null);
             setSavedPresets([]);
         }
     }, [user, db]);
 
     useEffect(() => {
-        if (!user || user.isAnonymous || isUserLoading || isGameDataLoading) return;
+        if (!user || !activeProfile || isUserLoading || isGameDataLoading) return;
+        
         const debounceSave = setTimeout(() => {
+             if (activeProfile.uid !== user.uid) return;
+             logMessage('Autosave: Saving data for active user profile.', { uid: user.uid });
             const dataToSave = { team, characterBuilds, enemyKey, rotation, rotationDuration, presetName };
             const appId = 'default-app-id';
-            const mainDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/calculatorData`, 'main');
+            let mainDocRef;
+             if (user.isAnonymous) {
+                mainDocRef = doc(db, `artifacts/${appId}/anonymous_users/${user.uid}/calculatorData`, 'main');
+            } else {
+                mainDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/calculatorData`, 'main');
+            }
             setDoc(mainDocRef, dataToSave, { merge: true }).catch(err => console.error("Error auto-saving:", err));
         }, 1500);
         return () => clearTimeout(debounceSave);
-    }, [team, characterBuilds, enemyKey, rotation, rotationDuration, presetName, user, isUserLoading, isGameDataLoading]);
-
+    }, [team, characterBuilds, enemyKey, rotation, rotationDuration, presetName, user, activeProfile, isUserLoading, isGameDataLoading]);
+    
     const calculationResults = useMemo(() => {
-        if (!gameData || !characterBuilds || !rotation) return [];
+        if (!gameData || !characterBuilds || !rotation || !activeProfile) return [];
         return rotation.map(action => {
             const charInfo = gameData.characterData[action.characterKey];
             const charBuild = characterBuilds[action.characterKey];
@@ -164,7 +309,7 @@ export const useAppContext = () => {
                 character: charInfo, characterBuild: charBuild, weapon: weaponInfo,
                 talent: talentInfo, activeBuffs: action.config.activeBuffs,
                 reactionType: action.config.reactionType, infusion: action.config.infusion,
-                enemy: gameData.enemyData[enemyKey], team, characterBuilds,
+                enemy: gameData.enemyData[enemyKey], team: activeProfile.team, characterBuilds: activeProfile.characterBuilds,
                 characterKey: action.characterKey, talentKey: action.talentKey, config: action.config
             };
             
@@ -175,7 +320,7 @@ export const useAppContext = () => {
                 formula: result.formula, repeat: action.repeat || 1
             };
         });
-    }, [rotation, characterBuilds, enemyKey, team, gameData]);
+    }, [rotation, characterBuilds, enemyKey, activeProfile, gameData]);
 
     const rotationSummary = useMemo(() => {
         const totalDamage = calculationResults.reduce((sum, res) => sum + (res.damage.avg || 0) * (res.repeat || 1), 0);
@@ -183,25 +328,20 @@ export const useAppContext = () => {
         return { totalDamage, dps };
     }, [calculationResults, rotationDuration]);
     
-    const fetchAndCacheProfile = async (uid) => {
-        const cached = enkaCache[uid];
-        if (cached && cached.expiresAt > Date.now()) return cached.data;
-        setIsFetchingProfile(true);
-        try {
-            const response = await fetch(`/api/uid/${uid}/`, { headers: { 'User-Agent': 'Genshin-Rotation-Calculator/1.0.1' } });
-            if (!response.ok) throw new Error(`Failed to fetch data for UID ${uid}. Make sure your characters are in your in-game showcase.`);
-            const enkaData = await response.json();
-            const ttl = enkaData.ttl || 60;
-            setEnkaCache(prev => ({ ...prev, [uid]: { data: enkaData, expiresAt: Date.now() + ttl * 1000 } }));
-            return enkaData;
-        } catch (error) {
-            showModal({ title: "Profile Sync Failed", message: error.message });
-            return null;
-        } finally {
-            setIsFetchingProfile(false);
+    const handleSignOut = () => {
+        const loggedInUid = user.uid;
+        signOut(auth).then(() => {
+             handleCloseProfile(loggedInUid);
+        });
+    };
+    
+    const handleCloseProfile = (uidToClose) => {
+        setProfiles(prev => prev.filter(p => p.uid !== uidToClose));
+        if (activeProfileUid === uidToClose) {
+            const userProfile = profiles.find(p => p.uid === user.uid);
+            setActiveProfileUid(userProfile ? user.uid : (profiles[0]?.uid || null));
         }
     };
-
     const submitToAllRelevantLeaderboards = async (uid, userBuilds) => {
         if (!gameData) return;
         try {
@@ -285,29 +425,6 @@ export const useAppContext = () => {
             showModal({ title: "Leaderboard Error", message: "An error occurred while automatically submitting scores." });
         }
     };
-
-    const handleUidLogin = async (uid) => {
-        setIsLoggingIn(true);
-        const profile = await fetchAndCacheProfile(uid);
-        if (profile) {
-            setSessionUid(uid);
-            const parsedBuilds = parseEnkaData(profile, gameData);
-            if (Object.keys(parsedBuilds).length > 0) {
-                 setCharacterBuilds(prev => ({ ...prev, ...parsedBuilds }));
-                 showModal({ title: "Builds Loaded!", message: "Your character builds have been imported. Now checking leaderboards..." });
-                 await submitToAllRelevantLeaderboards(uid, parsedBuilds);
-            } else {
-                 showModal({ title: "No Characters Found", message: "Could not find any supported characters in your showcase." });
-            }
-        }
-        setIsLoggingIn(false);
-    };
-
-    const handleSignOut = () => {
-        signOut(auth);
-        setSessionUid(null);
-    };
-
     const handleTeamChange = (index, charKey) => {
         const newTeam = [...team];
         newTeam[index] = charKey;
@@ -382,12 +499,12 @@ export const useAppContext = () => {
     };
 
     const handleLoadPreset = (preset) => {
-        setPresetName(preset.name);
-        setTeam(preset.team);
-        setCharacterBuilds(preset.characterBuilds);
-        setRotation(preset.rotation || []);
-        setRotationDuration(preset.rotationDuration);
-        setEnemyKey(preset.enemyKey);
+        updateActiveProfileData('presetName', preset.name);
+        updateActiveProfileData('team', preset.team);
+        updateActiveProfileData('characterBuilds', preset.characterBuilds);
+        updateActiveProfileData('rotation', preset.rotation || []);
+        updateActiveProfileData('rotationDuration', preset.rotationDuration);
+        updateActiveProfileData('enemyKey', preset.enemyKey);
     };
 
     const handleDeletePreset = async (id) => {
@@ -405,7 +522,7 @@ export const useAppContext = () => {
 
     const handleClearAll = () => {
         showModal({
-            title: "Clear Workspace?", message: "This will reset your team, builds, and rotation. Are you sure?",
+            title: "Clear Workspace?", message: "This will reset the active profile's team, builds, and rotation. Are you sure?",
             type: 'confirm',
             onConfirm: () => {
                 setTeam(initialTeam); setCharacterBuilds({});
@@ -425,8 +542,6 @@ export const useAppContext = () => {
         a.click();
         URL.revokeObjectURL(url);
     };
-
-    const handleImportClick = () => { importFileRef.current.click(); };
 
     const handleImportData = (event) => {
         const file = event.target.files[0];
@@ -497,12 +612,21 @@ export const useAppContext = () => {
     }, [calculationResults, rotationDuration, gameData]);
 
     return {
-        user, userData, sessionUid, isAdmin, isUserLoading, isGameDataLoading, isLoggingIn, isFetchingProfile,
+        user, isAdmin, isUserLoading, isGameDataLoading, isLoggingIn, isFetchingProfile,
         gameData, newsItems,
         page, setPage,
         showLoginModal, setShowLoginModal,
         showCreateLeaderboardModal, setShowCreateLeaderboardModal,
         currentLeaderboardId, setCurrentLeaderboardId,
+        
+        // --- LOGGING ---
+        logs, setLogs,
+        
+        // Profile state
+        profiles, activeProfile, activeProfileUid,
+        setActiveProfileUid, handleProfileLookup, handleCloseProfile,
+        
+        // State derived from active profile
         team, setTeam,
         characterBuilds, setCharacterBuilds,
         enemyKey, setEnemyKey,
@@ -510,6 +634,8 @@ export const useAppContext = () => {
         rotationDuration, setRotationDuration,
         presetName, setPresetName,
         savedPresets,
+        
+        // UI State
         mainView, setMainView,
         activeActionTray, setActiveActionTray,
         editingActionId, setEditingActionId,
@@ -517,7 +643,8 @@ export const useAppContext = () => {
         selectedActionIds, setSelectedActionIds,
         showBulkEdit, setShowBulkEdit,
         importFileRef,
-        handleUidLogin,
+        
+        // Handlers
         handleSignOut,
         handleTeamChange,
         updateCharacterBuild,
@@ -538,6 +665,8 @@ export const useAppContext = () => {
         handleCreateLeaderboard,
         onSaveToMastersheet: handleSaveToMastersheet,
         submitToAllRelevantLeaderboards,
+        
+        // Calculated Data
         calculationResults,
         rotationSummary,
         activeTeam,
