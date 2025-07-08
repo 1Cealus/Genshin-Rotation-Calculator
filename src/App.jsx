@@ -21,20 +21,31 @@ import { ProfilePage } from './pages/ProfilePage.jsx';
 
 const LoadingScreen = ({ text }) => (<div className="bg-slate-900 min-h-screen flex items-center justify-center text-white text-xl">{text}</div>);
 
-const LogViewer = ({ logs, setLogs }) => {
-    if (logs.length === 0) return null;
+const LogViewer = ({ logs, setLogs, isAdmin }) => {
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
+    if (!isAdmin) return null;
+
     return (
-        <div className="fixed bottom-4 right-4 w-full max-w-lg h-64 bg-black/80 backdrop-blur-sm border-2 border-slate-700 rounded-lg shadow-2xl z-50 flex flex-col">
-            <div className="flex justify-between items-center p-2 border-b border-slate-600">
+        <div className={`fixed bottom-4 right-4 w-full max-w-2xl bg-black/80 backdrop-blur-sm border-2 border-slate-700 rounded-lg shadow-2xl z-50 flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'h-12' : 'h-72'}`}>
+            <div className="flex justify-between items-center p-2 border-b border-slate-600 flex-shrink-0">
                 <h4 className="font-bold text-sm text-yellow-300">Live Logs</h4>
-                <button onClick={() => setLogs([])} className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">Clear</button>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setLogs([])} className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">Clear</button>
+                    <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded w-20">
+                        {isCollapsed ? 'Expand' : 'Collapse'}
+                    </button>
+                </div>
             </div>
-            <div className="overflow-y-auto p-2 text-xs font-mono space-y-1">
-                {logs.map((log, i) => <div key={i}>{log}</div>)}
-            </div>
+            {!isCollapsed && (
+                <div className="overflow-y-auto p-2 text-xs font-mono space-y-1">
+                    {logs.length > 0 ? logs.map((log, i) => <div key={i}>{log}</div>) : <p className="text-slate-500">No log entries yet.</p>}
+                </div>
+            )}
         </div>
-    )
-}
+    );
+};
+
 
 export default function App() {
     const {
@@ -161,7 +172,7 @@ export default function App() {
                 {renderPage()}
             </main>
             
-            <LogViewer logs={logs} setLogs={setLogs} />
+            <LogViewer logs={logs} setLogs={setLogs} isAdmin={isAdmin} />
         </div>
     );
 }
